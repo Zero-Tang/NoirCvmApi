@@ -7,10 +7,17 @@
 *.obj
 *.elf
 
+# Binary Resources
+*.res
+RC*
+
 # Linker output
 *.ilk
 *.map
 *.exp
+
+# Extra Compiled Codes
+*.cod
 
 # Precompiled Headers
 *.gch

@@ -1,0 +1,18 @@
+LIBRARY NoirCvmApi
+EXPORTS
+NoirCreateVirtualMachine @1
+NoirDeleteVirtualMachine @2
+NoirCreateVirtualProcessor @3
+NoirDeleteVirtualProcessor @4
+NoirSetAddressMapping @5
+NoirViewVirtualProcessorRegister @6
+NoirEditVirtualProcessorRegister @7
+NoirRunVirtualProcessor @8
+NoirInitializeLibrary @9
+NoirFinalizeLibrary @10
+MemAlloc @11
+MemFree @12
+PageAlloc @13
+PageFree @14
+LockPage @15
+UnlockPage @16
