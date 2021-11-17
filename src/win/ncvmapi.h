@@ -17,6 +17,28 @@ typedef ULONG32 NOIR_STATUS;
 typedef ULONG_PTR CVM_HANDLE;
 typedef PULONG_PTR PCVM_HANDLE;
 
+typedef union _NOIR_CVM_EVENT_INJECTION
+{
+	struct
+	{
+		ULONG64 Vector:8;
+		ULONG64 Type:3;
+		ULONG64 ErrorCodeValid:1;
+		ULONG64 Reserved:15;
+		ULONG64 Priority:4;
+		ULONG64 Valid:1;
+		ULONG64 ErrorCode:32;
+	};
+	ULONG64 Value;
+}NOIR_CVM_EVENT_INJECTION,*PNOIR_CVM_EVENT_INJECTION;
+
+typedef enum _NOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE
+{
+	NoirCvmGuestVpOptions,
+	NoirCvmExceptionBitmap,
+	NoirCvmSchedulingPriority
+}NOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE;*PNOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE;
+
 typedef struct _NOIR_GPR_STATE
 {
 	ULONG_PTR Rax;
@@ -143,6 +165,13 @@ typedef struct _NOIR_SR_STATE
 	SEGMENT_REGISTER Ds;
 }NOIR_SR_STATE,*PNOIR_SR_STATE;
 
+#define NoirMemoryTypeUncacheable		0
+#define NoirMemoryTypeWriteCombining	1
+#define NoirMemoryTypeWriteThrough		4
+#define NoirMemoryTypeWriteProtect		5
+#define NoirMemoryTypeWriteBack			6
+#define NoirMemoryTypeUncachableMinus	7
+
 typedef struct _NOIR_ADDRESS_MAPPING
 {
 	ULONG64 GPA;
@@ -246,6 +275,8 @@ typedef struct _NOIR_CVM_EXCEPTION_CONTEXT
 	};
 	ULONG32 ErrorCode;
 	ULONG64 PageFaultAddress;
+	BYTE FetchedBytes;
+	BYTE InstructionBytes[15];
 }NOIR_CVM_EXCEPTION_CONTEXT,*PNOIR_CVM_EXCEPTION_CONTEXT;
 
 typedef struct _NOIR_CVM_IO_CONTEXT

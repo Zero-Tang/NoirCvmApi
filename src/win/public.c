@@ -4,14 +4,14 @@
 #include "public.h"
 #include "ncvmapi.h"
 
-NOIR_STATUS NoirRunVirtualProcessor(IN CVM_HANDLE VmHandle,IN ULONG32 VpIndex,OUT PNOIR_CVM_EXIT_CONTEXT ExitContext)
+NOIR_STATUS NoirRunVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,OUT PNOIR_CVM_EXIT_CONTEXT ExitContext)
 {
 	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
 	PVOID OutBuff=_malloca(sizeof(NOIR_CVM_EXIT_CONTEXT)+8);
 	if(OutBuff)
 	{
 		ULONG_PTR InBuff[2];
-		InBuff[0]=VmHandle;
+		InBuff[0]=VirtualMachine;
 		InBuff[1]=(ULONG_PTR)VpIndex;
 		do
 		{
@@ -26,7 +26,7 @@ NOIR_STATUS NoirRunVirtualProcessor(IN CVM_HANDLE VmHandle,IN ULONG32 VpIndex,OU
 	return st;
 }
 
-NOIR_STATUS NoirEditVirtualProcessorRegister(IN CVM_HANDLE VmHandle,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,IN PVOID Buffer,IN ULONG32 BufferSize)
+NOIR_STATUS NoirEditVirtualProcessorRegister(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,IN PVOID Buffer,IN ULONG32 BufferSize)
 {
 	NOIR_STATUS st=NOIR_INSUFFICIENT_RESOURCES;
 	// Allocate memory from stack to avoid inter-thread serializations by virtue of heap operations.
@@ -34,7 +34,7 @@ NOIR_STATUS NoirEditVirtualProcessorRegister(IN CVM_HANDLE VmHandle,IN ULONG32 V
 	if(InBuff)
 	{
 		PNOIR_VIEW_EDIT_REGISTER_CONTEXT Context=(PNOIR_VIEW_EDIT_REGISTER_CONTEXT)InBuff;
-		Context->VirtualMachine=VmHandle;
+		Context->VirtualMachine=VirtualMachine;
 		Context->VpIndex=VpIndex;
 		Context->RegisterType=RegisterType;
 		RtlCopyMemory(&Context->DummyBuffer,Buffer,BufferSize);
@@ -44,7 +44,7 @@ NOIR_STATUS NoirEditVirtualProcessorRegister(IN CVM_HANDLE VmHandle,IN ULONG32 V
 	return st;
 }
 
-NOIR_STATUS NoirViewVirtualProcessorRegister(IN CVM_HANDLE VmHandle,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,OUT PVOID Buffer,IN ULONG32 BufferSize)
+NOIR_STATUS NoirViewVirtualProcessorRegister(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,OUT PVOID Buffer,IN ULONG32 BufferSize)
 {
 	NOIR_STATUS st=NOIR_INSUFFICIENT_RESOURCES;
 	// Allocate memory from stack to avoid inter-thread serializations by virtue of heap operations.
@@ -52,7 +52,7 @@ NOIR_STATUS NoirViewVirtualProcessorRegister(IN CVM_HANDLE VmHandle,IN ULONG32 V
 	if(OutBuff)
 	{
 		NOIR_VIEW_EDIT_REGISTER_CONTEXT Context;
-		Context.VirtualMachine=VmHandle;
+		Context.VirtualMachine=VirtualMachine;
 		Context.VpIndex=VpIndex;
 		Context.RegisterType=RegisterType;
 		NoirControlDriver(IOCTL_CvmViewVcpuReg,&Context,sizeof(NOIR_VIEW_EDIT_REGISTER_CONTEXT),OutBuff,BufferSize+8,NULL);
@@ -63,36 +63,67 @@ NOIR_STATUS NoirViewVirtualProcessorRegister(IN CVM_HANDLE VmHandle,IN ULONG32 V
 	return st;
 }
 
-NOIR_STATUS NoirSetAddressMapping(IN CVM_HANDLE VmHandle,IN PNOIR_ADDRESS_MAPPING MappingInformation)
+NOIR_STATUS NoirSetVirtualProcessorOptions(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE Type,IN ULONG32 Data)
+{
+	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
+	ULONG64 InBuff[3];
+	InBuff[0]=VirtualMachine;
+	InBuff[1]=(ULONG64)VpIndex;
+	*(PULONG32)((ULONG_PTR)&InBuff[2]+0)=Type;
+	*(PULONG32)((ULONG_PTR)&InBuff[2]+4)=Data;
+	NoirControlDriver(IOCTL_CvmSetVcpuOptions,InBuff,sizeof(InBuff),&st,sizeof(st),NULL);
+	return st;
+}
+
+NOIR_STATUS NoirSetEventInjection(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN BOOLEAN Valid,IN BYTE Vector,IN BYTE Type,IN BOOLEAN ErrorCodeValid,IN ULONG32 ErrorCode)
+{
+	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
+	NOIR_CVM_EVENT_INJECTION Event={0};
+	ULONG64 InBuff[3];
+	Event.Vector=Vector;
+	Event.Type=Type;
+	Event.ErrorCodeValid=ErrorCodeValid;
+	if(Type==0)Event.Priority=0xF;
+	Event.Reserved=0;
+	Event.Valid=Valid;
+	Event.ErrorCode=ErrorCode;
+	InBuff[0]=VirtualMachine;
+	InBuff[1]=(ULONG64)VpIndex;
+	InBuff[2]=Event.Value;
+	NoirControlDriver(IOCTL_CvmInjectEvent,InBuff,sizeof(InBuff),&st,sizeof(st),NULL);
+	return st;
+}
+
+NOIR_STATUS NoirSetAddressMapping(IN CVM_HANDLE VirtualMachine,IN PNOIR_ADDRESS_MAPPING MappingInformation)
 {
 	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
 	ULONG64 InBuff[4];
 	BOOL bRet;
 	RtlCopyMemory(InBuff,MappingInformation,sizeof(NOIR_ADDRESS_MAPPING));
-	InBuff[3]=(ULONG64)VmHandle;
+	InBuff[3]=(ULONG64)VirtualMachine;
 	bRet=NoirControlDriver(IOCTL_CvmSetMapping,InBuff,sizeof(InBuff),&st,sizeof(st),NULL);
 	return st;
 }
 
-NOIR_STATUS NoirCreateVirtualProcessor(IN CVM_HANDLE VmHandle,IN ULONG32 VpIndex)
+NOIR_STATUS NoirCreateVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex)
 {
 	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
-	ULONG_PTR InBuff[2]={VmHandle,VpIndex};
+	ULONG_PTR InBuff[2]={VirtualMachine,VpIndex};
 	BOOL bRet=NoirControlDriver(IOCTL_CvmCreateVcpu,InBuff,sizeof(InBuff),&st,sizeof(st),NULL);
 	if(bRet)NoirDebugPrint("vCPU Creation Status=0x%X\n",st);
 	return st;
 }
 
-NOIR_STATUS NoirDeleteVirtualProcessor(IN CVM_HANDLE VmHandle,IN ULONG32 VpIndex)
+NOIR_STATUS NoirDeleteVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex)
 {
 	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
-	ULONG_PTR InBuff[2]={VmHandle,VpIndex};
+	ULONG_PTR InBuff[2]={VirtualMachine,VpIndex};
 	BOOL bRet=NoirControlDriver(IOCTL_CvmDeleteVcpu,InBuff,sizeof(InBuff),&st,sizeof(st),NULL);
 	if(bRet)NoirDebugPrint("vCPU Deletion Status=0x%X\n",st);
 	return st;
 }
 
-NOIR_STATUS NoirCreateVirtualMachine(OUT PCVM_HANDLE VmHandle)
+NOIR_STATUS NoirCreateVirtualMachine(OUT PCVM_HANDLE VirtualMachine)
 {
 	ULONG_PTR OutBuff[2];
 	BOOL bRet=NoirControlDriver(IOCTL_CvmCreateVm,NULL,0,OutBuff,sizeof(OutBuff),NULL);
@@ -100,7 +131,7 @@ NOIR_STATUS NoirCreateVirtualMachine(OUT PCVM_HANDLE VmHandle)
 	{
 		NOIR_STATUS st=(NOIR_STATUS)OutBuff[0];
 		if(st==NOIR_SUCCESS)
-			*VmHandle=(CVM_HANDLE)OutBuff[1];
+			*VirtualMachine=(CVM_HANDLE)OutBuff[1];
 		else
 			NoirDebugPrint("Failed to create VM! Status=0x%X\n",st);
 		return st;
@@ -109,9 +140,9 @@ NOIR_STATUS NoirCreateVirtualMachine(OUT PCVM_HANDLE VmHandle)
 	return NOIR_UNSUCCESSFUL;
 }
 
-NOIR_STATUS NoirDeleteVirtualMachine(IN CVM_HANDLE VmHandle)
+NOIR_STATUS NoirDeleteVirtualMachine(IN CVM_HANDLE VirtualMachine)
 {
 	NOIR_STATUS st;
-	NoirControlDriver(IOCTL_CvmDeleteVm,&VmHandle,sizeof(VmHandle),&st,sizeof(st),NULL);
+	NoirControlDriver(IOCTL_CvmDeleteVm,&VirtualMachine,sizeof(VirtualMachine),&st,sizeof(st),NULL);
 	return st;
 }

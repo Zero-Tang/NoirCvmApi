@@ -13,6 +13,8 @@
 #define IOCTL_CvmViewVcpuReg	CTL_CODE_GEN(0x893)
 #define IOCTL_CvmEditVcpuReg	CTL_CODE_GEN(0x894)
 #define IOCTL_CvmCancelRunVcpu	CTL_CODE_GEN(0x895)
+#define IOCTL_CvmInjectEvent	CTL_CODE_GEN(0x896)
+#define IOCTL_CvmSetVcpuOptions	CTL_CODE_GEN(0x897)
 
 BOOL NoirControlDriver(IN ULONG IoControlCode,IN PVOID InputBuffer,IN ULONG InputSize,OUT PVOID OutputBuffer,IN ULONG OutputSize,OUT PULONG ReturnLength OPTIONAL);
 void __cdecl NoirDebugPrint(IN PCSTR Format,...);

@@ -11,7 +11,7 @@ echo Project: NoirCvmApi Library
 echo Platform: 64-Bit Windows
 echo Preset: Debug/Checked Build
 echo Powered by zero.tangptr@gmail.com
-echo Copyright (c) 2018-2021, zero.tangptr@gmail.com. All Rights Reserved.
+echo Copyright (c) 2021, zero.tangptr@gmail.com. All Rights Reserved.
 if "%~1"=="/s" (echo DO-NOT-PAUSE is activated!) else (pause)
 
 echo ============Start Compiling============
