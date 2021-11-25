@@ -75,7 +75,7 @@ NOIR_STATUS NoirSetVirtualProcessorOptions(IN CVM_HANDLE VirtualMachine,IN ULONG
 	return st;
 }
 
-NOIR_STATUS NoirSetEventInjection(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN BOOLEAN Valid,IN BYTE Vector,IN BYTE Type,IN BOOLEAN ErrorCodeValid,IN ULONG32 ErrorCode)
+NOIR_STATUS NoirSetEventInjection(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN BOOLEAN Valid,IN BYTE Vector,IN BYTE Type,IN BYTE Priority,IN BOOLEAN ErrorCodeValid,IN ULONG32 ErrorCode)
 {
 	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
 	NOIR_CVM_EVENT_INJECTION Event={0};
@@ -83,7 +83,7 @@ NOIR_STATUS NoirSetEventInjection(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpInde
 	Event.Vector=Vector;
 	Event.Type=Type;
 	Event.ErrorCodeValid=ErrorCodeValid;
-	if(Type==0)Event.Priority=0xF;
+	if(Type==0)Event.Priority=Priority;
 	Event.Reserved=0;
 	Event.Valid=Valid;
 	Event.ErrorCode=ErrorCode;
