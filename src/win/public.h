@@ -12,7 +12,7 @@
 #define IOCTL_CvmRunVcpu		CTL_CODE_GEN(0x892)
 #define IOCTL_CvmViewVcpuReg	CTL_CODE_GEN(0x893)
 #define IOCTL_CvmEditVcpuReg	CTL_CODE_GEN(0x894)
-#define IOCTL_CvmCancelRunVcpu	CTL_CODE_GEN(0x895)
+#define IOCTL_CvmRescindVcpu	CTL_CODE_GEN(0x895)
 #define IOCTL_CvmInjectEvent	CTL_CODE_GEN(0x896)
 #define IOCTL_CvmSetVcpuOptions	CTL_CODE_GEN(0x897)
 

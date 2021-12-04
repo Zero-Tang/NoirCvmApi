@@ -26,6 +26,14 @@ NOIR_STATUS NoirRunVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIn
 	return st;
 }
 
+NOIR_STATUS NoirRescindVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex)
+{
+	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
+	ULONG64 InBuff[2]={VirtualMachine,(ULONG64)VpIndex};
+	NoirControlDriver(IOCTL_CvmRescindVcpu,InBuff,sizeof(InBuff),&st,sizeof(st),NULL);
+	return st;
+}
+
 NOIR_STATUS NoirEditVirtualProcessorRegister(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,IN PVOID Buffer,IN ULONG32 BufferSize)
 {
 	NOIR_STATUS st=NOIR_INSUFFICIENT_RESOURCES;

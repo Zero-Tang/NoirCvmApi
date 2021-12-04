@@ -238,6 +238,8 @@ typedef enum _NOIR_CVM_INTERCEPT_CODE
 	CvDrAccess=10,
 	CvHypercall=11,
 	CvException=12,
+	CvRescission=13,
+	CvInterruptWindow=14,
 	CvSchedulerExit=0x80000000,
 	CvSchedulerPause=0x80000001
 }NOIR_CVM_INTERCEPT_CODE,*PNOIR_CVM_INTERCEPT_CODE;
