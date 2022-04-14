@@ -1,21 +1,8 @@
-// Definitions of Status Codes of NoirVisor.
-#define NOIR_SUCCESS					0
-#define NOIR_UNSUCCESSFUL				0xC0000000
-#define NOIR_INSUFFICIENT_RESOURCES		0xC0000001
-#define NOIR_NOT_IMPLEMENTED			0xC0000002
-#define NOIR_UNKNOWN_PROCESSOR			0xC0000003
-#define NOIR_INVALID_PARAMETER			0xC0000004
-#define NOIR_HYPERVISION_ABSENT			0xC0000005
-#define NOIR_VCPU_ALREADY_CREATED		0xC0000006
-#define NOIR_BUFFER_TOO_SMALL			0xC0000007
-#define NOIR_VCPU_NOT_EXIST				0xC0000008
-#define NOIR_USER_PAGE_VIOLATION		0xC0000009
-
-typedef ULONG32 NOIR_STATUS;
-
-// Layered Hypervisor Functions
-typedef ULONG_PTR CVM_HANDLE;
-typedef PULONG_PTR PCVM_HANDLE;
+#if defined(_WIN64) || defined(_WIN32)
+#include <Windows.h>
+#endif
+#include "base.h"
+#include "nvstatus.h"
 
 typedef union _NOIR_CVM_EVENT_INJECTION
 {
@@ -41,15 +28,14 @@ typedef enum _NOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE
 
 typedef struct _NOIR_GPR_STATE
 {
-	ULONG_PTR Rax;
-	ULONG_PTR Rcx;
-	ULONG_PTR Rdx;
-	ULONG_PTR Rbx;
-	ULONG_PTR Rsp;
-	ULONG_PTR Rbp;
-	ULONG_PTR Rsi;
-	ULONG_PTR Rdi;
-#if defined(_WIN64)
+	ULONG64 Rax;
+	ULONG64 Rcx;
+	ULONG64 Rdx;
+	ULONG64 Rbx;
+	ULONG64 Rsp;
+	ULONG64 Rbp;
+	ULONG64 Rsi;
+	ULONG64 Rdi;
 	ULONG64 R8;
 	ULONG64 R9;
 	ULONG64 R10;
@@ -58,7 +44,6 @@ typedef struct _NOIR_GPR_STATE
 	ULONG64 R13;
 	ULONG64 R14;
 	ULONG64 R15;
-#endif
 }NOIR_GPR_STATE,*PNOIR_GPR_STATE;
 
 typedef struct _NOIR_CR_STATE
