@@ -8,7 +8,7 @@ NoirVisor Customizable VM API Library
 Currently, only 64-bit Windows Operating Systems running on processors that support AMD-V are supported.
 
 ## Documentation
-NoirCvmApi is currently in early stage of development. Documentation is planned to be released on [GitHub Wiki of this repository](https://github.com/Zero-Tang/NoirCvmApi/wiki).
+NoirCvmApi is currently in early stage of development. Documentation is released on [GitHub Wiki of this repository](https://github.com/Zero-Tang/NoirCvmApi/wiki).
 
 ## Build
 There are two compatibility-concerned versions of scripted compilation. \
@@ -23,6 +23,9 @@ To build NoirCvmApi with this option, you must mount [EWDK11-22000](https://docs
 This version will try to catch as older versions of systems as possible. This version would also generate smaller executables. \
 Execute `compchk_win7x64.bat` to compile without optimization or `compfre_win7x64.bat` for compilation with optimization. \
 To build NoirCvmApi with this option, you must install [WDK7.1-7600](https://www.microsoft.com/en-us/download/details.aspx?id=11800) to default location on C: drive.
+
+## Importing NoirCvmApi to Your Project
+**TODO**: Decision about the standard procedure for importing NoirCvmApi is not publicly available yet.
 
 ## License
 This repository is under the MIT license.

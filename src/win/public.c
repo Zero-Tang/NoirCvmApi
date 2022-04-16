@@ -113,6 +113,32 @@ NOIR_STATUS NoirSetAddressMapping(IN CVM_HANDLE VirtualMachine,IN PNOIR_ADDRESS_
 	return st;
 }
 
+NOIR_STATUS NoirQueryGpaAccessingBitmap(IN CVM_HANDLE VirtualMachine,IN ULONG64 GpaStart,IN ULONG32 NumberOfPages,OUT PVOID Bitmap,IN ULONG32 BitmapSize)
+{
+	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
+	NOIR_QUERY_ADBITMAP_CONTEXT Context;
+	BOOL bRet;
+	Context.VirtualMachine=VirtualMachine;
+	Context.GpaStart=GpaStart;
+	Context.BitmapBuffer=(ULONG64)Bitmap;
+	Context.BitmapLength=BitmapSize;
+	Context.NumberOfPages=NumberOfPages;
+	bRet=NoirControlDriver(IOCTL_CvmQueryGpaAdMap,&Context,sizeof(Context),&st,sizeof(st),NULL);
+	return st;
+}
+
+NOIR_STATUS NoirClearGpaAccessingBits(IN CVM_HANDLE VirtualMachine,IN ULONG64 GpaStart,IN ULONG32 NumberOfPages)
+{
+	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
+	NOIR_QUERY_ADBITMAP_CONTEXT Context;
+	BOOL bRet;
+	Context.VirtualMachine=VirtualMachine;
+	Context.GpaStart=GpaStart;
+	Context.NumberOfPages=NumberOfPages;
+	bRet=NoirControlDriver(IOCTL_CvmClearGpaAdMap,&Context,sizeof(Context),&st,sizeof(st),NULL);
+	return st;
+}
+
 NOIR_STATUS NoirCreateVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex)
 {
 	NOIR_STATUS st=NOIR_UNSUCCESSFUL;

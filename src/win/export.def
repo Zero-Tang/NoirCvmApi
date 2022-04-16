@@ -19,3 +19,5 @@ UnlockPage @16
 NoirSetEventInjection @17
 NoirSetVirtualProcessorOptions @18
 NoirRescindVirtualProcessor @19
+NoirQueryGpaAccessingBitmap @20
+NoirClearGpaAccessingBits @21
