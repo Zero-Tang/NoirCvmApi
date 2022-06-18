@@ -1,8 +1,8 @@
 #include <Windows.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <NoirCvmApi.h>
 #include "public.h"
-#include "ncvmapi.h"
 
 NOIR_STATUS NoirRunVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,OUT PNOIR_CVM_EXIT_CONTEXT ExitContext)
 {

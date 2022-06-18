@@ -19,7 +19,7 @@ cl ..\src\win\misc.c /I"%incpath%\api" /I"%incpath%\crt" /Zi /nologo /W3 /WX /Od
 
 cl ..\src\win\drv_comm.c /I"%incpath%\api" /I"%incpath%\crt" /Zi /nologo /W3 /WX /Od /Oi /D"_AMD64_" /D"_M_AMD64" /D"_WIN64" /D"_UNICODE" /D"UNICODE" /Zc:wchar_t /FAcs /Fa"%objpath%\drv_comm.cod" /Fo"%objpath%\drv_comm.obj" /Fd"%objpath%\vc90.pdb" /GS- /TC /c /errorReport:queue
 
-cl ..\src\win\public.c /I"%incpath%\api" /I"%incpath%\crt" /Zi /nologo /W3 /WX /Od /Oi /D"_AMD64_" /D"_M_AMD64" /D"_WIN64" /D"_UNICODE" /D"UNICODE" /Zc:wchar_t /FAcs /Fa"%objpath%\public.cod" /Fo"%objpath%\public.obj" /Fd"%objpath%\vc90.pdb" /GS- /TC /c /errorReport:queue
+cl ..\src\win\public.c /I"%incpath%\api" /I"%incpath%\crt" /I"..\sdk\include" /Zi /nologo /W3 /WX /Od /Oi /D"_AMD64_" /D"_M_AMD64" /D"_WIN64" /D"_UNICODE" /D"UNICODE" /Zc:wchar_t /FAcs /Fa"%objpath%\public.cod" /Fo"%objpath%\public.obj" /Fd"%objpath%\vc90.pdb" /GS- /TC /c /errorReport:queue
 
 rc /d"_AMD64_" /i"%incpath%\api" /i"%incpath%\crt" /fo"%objpath%\version.res" /n ..\src\win\version.rc
 

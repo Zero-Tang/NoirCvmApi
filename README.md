@@ -24,8 +24,9 @@ This version will try to catch as older versions of systems as possible. This ve
 Execute `compchk_win7x64.bat` to compile without optimization or `compfre_win7x64.bat` for compilation with optimization. \
 To build NoirCvmApi with this option, you must install [WDK7.1-7600](https://www.microsoft.com/en-us/download/details.aspx?id=11800) to default location on C: drive.
 
-## Importing NoirCvmApi to Your Project
-**TODO**: Decision about the standard procedure for importing NoirCvmApi is not publicly available yet.
+## Install NoirCvmApi SDK 
+Go to the `sdk` directory in this repository and execute the installer script. \
+For further details, read the [document](/sdk/readme.md).
 
 ## License
 This repository is under the MIT license.
