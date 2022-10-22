@@ -145,7 +145,6 @@ typedef struct _NOIR_FX_STATE
 #else
 	ULONG64 Reserved[22];
 #endif
-	// If Available[0]==0, Ffxsr Is Disabled.
 	ULONG64 Available[6];
 }NOIR_FX_STATE,*PNOIR_FX_STATE;
 
@@ -355,6 +354,7 @@ typedef struct _NOIR_CVM_EXIT_CONTEXT
 	SEGMENT_REGISTER Cs;
 	ULONG64 Rip;
 	ULONG64 Rflags;
+	ULONG64 NextRip;
 	struct
 	{
 		ULONG32 Cpl:2;
@@ -365,3 +365,38 @@ typedef struct _NOIR_CVM_EXIT_CONTEXT
 		ULONG32 Reserved:23;
 	}VpState;
 }NOIR_CVM_EXIT_CONTEXT,*PNOIR_CVM_EXIT_CONTEXT;
+
+// Library Support Routine
+BOOL NoirInitializeLibrary();
+void NoirFinalizeLibrary();
+
+// Support Functions
+PVOID MemAlloc(IN SIZE_T Length);
+BOOL MemFree(IN PVOID Memory);
+PVOID PageAlloc(IN SIZE_T Length);
+BOOL PageFree(IN PVOID Memory);
+BOOL LockPage(IN PVOID Memory,IN ULONG Size);
+BOOL UnlockPage(IN PVOID Memory,IN ULONG Size);
+
+// Virtual Machine Management
+NOIR_STATUS NoirCreateVirtualMachine(OUT PCVM_HANDLE VirtualMachine);
+NOIR_STATUS NoirDeleteVirtualMachine(IN CVM_HANDLE VirtualMachine);
+
+// Virtual Processor Management
+NOIR_STATUS NoirCreateVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex);
+NOIR_STATUS NoirDeleteVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex);
+
+// VM Memory Management
+NOIR_STATUS NoirSetAddressMapping(IN CVM_HANDLE VirtualMachine,IN PNOIR_ADDRESS_MAPPING MappingInformation);
+NOIR_STATUS NoirClearGpaAccessingBits(IN CVM_HANDLE VirtualMachine,IN ULONG64 GpaStart,IN ULONG32 NumberOfPages);
+NOIR_STATUS NoirQueryGpaAccessingBitmap(IN CVM_HANDLE VirtualMachine,IN ULONG64 GpaStart,IN ULONG32 NumberOfPages,OUT PVOID Bitmap,IN ULONG32 BitmapSize);
+
+// Virtual Processor Registers
+NOIR_STATUS NoirViewVirtualProcessorRegister(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,OUT PVOID Buffer,IN ULONG32 BufferSize);
+NOIR_STATUS NoirEditVirtualProcessorRegister(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,IN PVOID Buffer,IN ULONG32 BufferSize);
+
+// Virtual Processor Run-Control
+NOIR_STATUS NoirRunVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,OUT PNOIR_CVM_EXIT_CONTEXT ExitContext);
+NOIR_STATUS NoirRescindVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex);
+NOIR_STATUS NoirSetEventInjection(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN BOOLEAN Valid,IN BYTE Vector,IN BYTE Type,IN BYTE Priority,IN BOOLEAN ErrorCodeValid,IN ULONG32 ErrorCode);
+NOIR_STATUS NoirSetVirtualProcessorOptions(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE Type,IN ULONG32 Data);
