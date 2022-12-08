@@ -180,3 +180,12 @@ NOIR_STATUS NoirDeleteVirtualMachine(IN CVM_HANDLE VirtualMachine)
 	NoirControlDriver(IOCTL_CvmDeleteVm,&VirtualMachine,sizeof(VirtualMachine),&st,sizeof(st),NULL);
 	return st;
 }
+
+NOIR_STATUS NoirQueryHypervisorStatus(IN NOIR_CVM_HYPERVISOR_STATUS_TYPE StatusType,OUT PVOID Status)
+{
+	ULONG64 OutBuff[3];
+	ULONG64 InBuff=StatusType;
+	NoirControlDriver(IOCTL_CvmQueryHvStatus,&InBuff,sizeof(InBuff),OutBuff,sizeof(OutBuff),NULL);
+	RtlCopyMemory(Status,&OutBuff[1],16);
+	return (NOIR_STATUS)OutBuff[0];
+}

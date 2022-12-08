@@ -3,8 +3,8 @@ set ddkpath=V:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MS
 set path=%ddkpath%\bin\Hostx64\x64;V:\Program Files\Windows Kits\10\bin\10.0.22621.0\x64;%path%
 set incpath=V:\Program Files\Windows Kits\10\Include\10.0.22621.0
 set libpath=V:\Program Files\Windows Kits\10\Lib\10.0.22621.0
-set binpath=..\bin\compchk_win11x64
-set objpath=..\bin\compchk_win11x64\Intermediate
+set binpath=..\bin\compfre_win11x64
+set objpath=..\bin\compfre_win11x64\Intermediate
 
 title Compiling NoirCvmApi, Free Build, 64-Bit Windows (AMD64 Architecture)
 echo Project: NoirCvmApi Library

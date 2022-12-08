@@ -17,6 +17,18 @@ typedef ULONG32 NOIR_STATUS;
 typedef ULONG_PTR CVM_HANDLE;
 typedef PULONG_PTR PCVM_HANDLE;
 
+typedef enum _NOIR_CVM_HYPERVISOR_STATUS_TYPE
+{
+	NoirCvmHvStatusPresence,
+	NoirCvmHvStatusCapability,
+	NoirCvmHvStatusHypercallInstruction
+}NOIR_CVM_HYPERVISOR_STATUS_TYPE,*PNOIR_CVM_HYPERVISOR_STATUS_TYPE;
+
+#define NoirEventTypeExternalInterrupt		0
+#define NoirEventTypeNonMaskableInterrupt	2
+#define NoirEventTypeException				3
+#define NoirEventTypeSoftwareInterrupt		4
+
 typedef union _NOIR_CVM_EVENT_INJECTION
 {
 	struct
@@ -36,8 +48,33 @@ typedef enum _NOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE
 {
 	NoirCvmGuestVpOptions,
 	NoirCvmExceptionBitmap,
-	NoirCvmSchedulingPriority
-}NOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE;*PNOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE;
+	NoirCvmSchedulingPriority,
+	NoirCvmMsrInterception
+}NOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE,*PNOIR_CVM_VIRTUAL_PROCESSOR_OPTION_TYPE;
+
+typedef union _NOIR_CVM_VIRTUAL_PROCESSOR_OPTIONS
+{
+	struct
+	{
+		ULONG32 InterceptCpuid:1;
+		ULONG32 InterceptMsr:1;
+		ULONG32 InterceptInterruptWindow:1;
+		ULONG32 InterceptExceptions:1;
+		ULONG32 InterceptCr3:1;
+		ULONG32 InterceptDrx:1;
+		ULONG32 InterceptPause:1;
+		ULONG32 Npiep:1;
+		ULONG32 InterceptNmiWindow:1;
+		ULONG32 InterceptRsm:1;
+		ULONG32 BlockingByNmi:1;
+		ULONG32 HiddenTF:1;
+		ULONG32 InterruptShadow:1;
+		ULONG32 UseTunnel:1;
+		ULONG32 TunnelFormat:3;
+		ULONG32 Reserved:15;
+	};
+	ULONG32 Value;
+}NOIR_CVM_VIRTUAL_PROCESSOR_OPTIONS,*PNOIR_CVM_VIRTUAL_PROCESSOR_OPTIONS;
 
 typedef struct _NOIR_GPR_STATE
 {
@@ -164,6 +201,13 @@ typedef struct _NOIR_SR_STATE
 	SEGMENT_REGISTER Ds;
 }NOIR_SR_STATE,*PNOIR_SR_STATE;
 
+typedef struct _NOIR_FG_STATE
+{
+	SEGMENT_REGISTER Fs;
+	SEGMENT_REGISTER Gs;
+	ULONG64 KernelGsBase;
+}NOIR_FG_STATE,*PNOIR_FG_STATE;
+
 #define NoirMemoryTypeUncacheable		0
 #define NoirMemoryTypeWriteCombining	1
 #define NoirMemoryTypeWriteThrough		4
@@ -186,7 +230,9 @@ typedef struct _NOIR_ADDRESS_MAPPING
 			ULONG32 User:1;
 			ULONG32 Caching:3;
 			ULONG32 PageSize:2;
-			ULONG32 Reserved:23;
+			ULONG32 Avl:3;
+			ULONG32 NsvSecure:1;
+			ULONG32 Reserved:19;
 		};
 		ULONG32 Value;
 	}Attributes;
@@ -211,6 +257,11 @@ typedef enum _NOIR_CVM_REGISTER_TYPE
 	NoirCvmFxState,
 	NoirCvmXsaveArea,
 	NoirCvmXcr0Register,
+	NoirCvmEferRegister,
+	NoirCvmPatRegister,
+	NoirCvmLastBranchRecordRegister,
+	NoirCvmTimeStampCounter,
+	NoirCvmGuestHostCommunicationBlock,
 	NoirCvmMaxmimumRegisterType
 }NOIR_CVM_REGISTER_TYPE,*PNOIR_CVM_REGISTER_TYPE;
 
@@ -249,7 +300,11 @@ typedef enum _NOIR_CVM_INTERCEPT_CODE
 	CvRescission=13,
 	CvInterruptWindow=14,
 	CvSchedulerExit=0x80000000,
-	CvSchedulerPause=0x80000001
+	CvSchedulerPause=0x80000001,
+	CvSchedulerBug=0x80000002,
+	CvSchedulerNptMisconfig=0x80000003,
+	CvSchedulerNsvActivate=0x80000004,
+	CvSchedulerNsvClaimSecurity=0x80000005
 }NOIR_CVM_INTERCEPT_CODE,*PNOIR_CVM_INTERCEPT_CODE;
 
 typedef struct _NOIR_CVM_CR_ACCESS_CONTEXT
@@ -327,6 +382,17 @@ typedef struct _NOIR_CVM_MEMORY_ACCESS_CONTEXT
 	}Access;
 	BYTE InstructionBytes[15];
 	ULONG64 Gpa;
+	ULONG64 Gva;
+	union
+	{
+		struct
+		{
+			ULONG64 OperandSize:16;
+			ULONG64 Reserved:47;
+			ULONG64 Decoded:1;
+		};
+		ULONG64 Value;
+	}Flags;
 }NOIR_CVM_MEMORY_ACCESS_CONTEXT,*PNOIR_CVM_MEMORY_ACCESS_CONTEXT;
 
 typedef struct _NOIR_CVM_CPUID_CONTEXT
@@ -357,12 +423,15 @@ typedef struct _NOIR_CVM_EXIT_CONTEXT
 	ULONG64 NextRip;
 	struct
 	{
-		ULONG32 Cpl:2;
-		ULONG32 Pe:1;
-		ULONG32 Lm:1;
-		ULONG32 InterruptShadow:1;
-		ULONG32 InstructionLength:4;
-		ULONG32 Reserved:23;
+		ULONG64 Cpl:2;
+		ULONG64 Pe:1;
+		ULONG64 Lm:1;
+		ULONG64 InterruptShadow:1;
+		ULONG64 InstructionLength:4;
+		ULONG64 InterruptPending:1;
+		ULONG64 Pg:1;
+		ULONG64 Pae:1;
+		ULONG64 Reserved:52;
 	}VpState;
 }NOIR_CVM_EXIT_CONTEXT,*PNOIR_CVM_EXIT_CONTEXT;
 
@@ -377,6 +446,9 @@ PVOID PageAlloc(IN SIZE_T Length);
 BOOL PageFree(IN PVOID Memory);
 BOOL LockPage(IN PVOID Memory,IN ULONG Size);
 BOOL UnlockPage(IN PVOID Memory,IN ULONG Size);
+
+// Hypervisor Information
+NOIR_STATUS NoirQueryHypervisorStatus(IN NOIR_CVM_HYPERVISOR_STATUS_TYPE StatusType,OUT PVOID Status);
 
 // Virtual Machine Management
 NOIR_STATUS NoirCreateVirtualMachine(OUT PCVM_HANDLE VirtualMachine);
