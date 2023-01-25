@@ -69,9 +69,10 @@ typedef union _NOIR_CVM_VIRTUAL_PROCESSOR_OPTIONS
 		ULONG32 BlockingByNmi:1;
 		ULONG32 HiddenTF:1;
 		ULONG32 InterruptShadow:1;
+		ULONG32 DecodeMemoryAccessInstruction:1;
 		ULONG32 UseTunnel:1;
 		ULONG32 TunnelFormat:3;
-		ULONG32 Reserved:15;
+		ULONG32 Reserved:14;
 	};
 	ULONG32 Value;
 }NOIR_CVM_VIRTUAL_PROCESSOR_OPTIONS,*PNOIR_CVM_VIRTUAL_PROCESSOR_OPTIONS;
@@ -287,7 +288,7 @@ typedef enum _NOIR_CVM_INTERCEPT_CODE
 	CvInvalidState=0,
 	CvShutdownCondition=1,
 	CvMemoryAccess=2,
-	CvInitSignal=3,
+	CvRsmInstruction=3,
 	CvHltInstruction=4,
 	CvIoInstruction=5,
 	CvCpuidInstruction=6,
@@ -370,6 +371,19 @@ typedef struct _NOIR_CVM_MSR_CONTEXT
 	ULONG32 Ecx;
 }NOIR_CVM_MSR_CONTEXT,*PNOIR_CVM_MSR_CONTEXT;
 
+#define NoirCvmOperandClassGpr			0
+#define NoirCvmOperandClassGpr8Hi		1
+#define NoirCvmOperandClassMemory		2
+#define NoirCvmOperandClassFarPtr		3
+#define NoirCvmOperandClassImmediate	4
+#define NoirCvmOperandClassSegSel		5
+#define NoirCvmOperandClassFpr			6
+#define NoirCvmOperandClassSimd			7
+#define NoirCvmOperandClassUnknown		31
+
+#define NoirCvmInstructionCodeMov			0
+#define NoirCvmInstructionCodeUnknown		0xFFFF
+
 typedef struct _NOIR_CVM_MEMORY_ACCESS_CONTEXT
 {
 	struct
@@ -388,11 +402,34 @@ typedef struct _NOIR_CVM_MEMORY_ACCESS_CONTEXT
 		struct
 		{
 			ULONG64 OperandSize:16;
-			ULONG64 Reserved:47;
+			ULONG64 InstructionCode:16;
+			ULONG64 OperandClass:5;
+			ULONG64 OperandCode:7;
+			ULONG64 Reserved:19;
 			ULONG64 Decoded:1;
 		};
 		ULONG64 Value;
 	}Flags;
+	union
+	{
+		struct
+		{
+			BOOL IsSigned;
+			struct
+			{
+				ULONG64 u;
+				LONG64 s;
+			};
+		}Immediate;
+		ULONG64 MemoryAddress;
+		struct
+		{
+			USHORT Segment;
+			USHORT Reserved0;
+			ULONG32 Offset;
+			ULONG64 Reserved1;
+		}FarPointer;
+	}Operand;
 }NOIR_CVM_MEMORY_ACCESS_CONTEXT,*PNOIR_CVM_MEMORY_ACCESS_CONTEXT;
 
 typedef struct _NOIR_CVM_CPUID_CONTEXT
