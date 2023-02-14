@@ -415,7 +415,7 @@ typedef struct _NOIR_CVM_MEMORY_ACCESS_CONTEXT
 		struct
 		{
 			BOOL IsSigned;
-			struct
+			union
 			{
 				ULONG64 u;
 				LONG64 s;
