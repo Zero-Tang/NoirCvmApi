@@ -209,6 +209,15 @@ typedef struct _NOIR_FG_STATE
 	ULONG64 KernelGsBase;
 }NOIR_FG_STATE,*PNOIR_FG_STATE;
 
+typedef struct _NOIR_SYSCALL_MSR_STATE
+{
+	ULONG64 Star;
+	ULONG64 LStar;
+	ULONG64 CStar;
+	ULONG64 SfMask;
+	ULONG64 StStar;
+}NOIR_SYSCALL_MSR_STATE,*PNOIR_SYSCALL_MSR_STATE;
+
 #define NoirMemoryTypeUncacheable		0
 #define NoirMemoryTypeWriteCombining	1
 #define NoirMemoryTypeWriteThrough		4
@@ -330,6 +339,29 @@ typedef struct _NOIR_CVM_DR_ACCESS_CONTEXT
 		ULONG32 Reserved:23;
 	};
 }NOIR_CVM_DR_ACCESS_CONTEXT,*PNOIR_CVM_DR_ACCESS_CONTEXT;
+
+typedef enum _NOIR_CVM_EXCEPTION_VECTOR
+{
+	CvDivideError=0,
+	CvDebugFaultOrTrap=1,
+	CvNonMaskableException=2,
+	CvBreakpointTrap=3,
+	CvOverflowTrap=4,
+	CvBoundRangeFault=5,
+	CvInvalidOpcodeFault=6,
+	CvDeviceNotAvailableFault=7,
+	CvDoubleFaultAbort=8,
+	CvInvalidTssFault=10,
+	CvSegmentNotPresentFault=11,
+	CvStackFault=12,
+	CvGeneralProtectionFault=13,
+	CvPageFault=14,
+	CvX87FloatingPointFault=16,
+	CvAlignmentCheckFault=17,
+	CvMachineCheckAbort=18,
+	CvSimdFloatingPointFault=19,
+	CvControlProtectionFault=21
+}NOIR_CVM_EXCEPTION_VECTOR,*PNOIR_CVM_EXCEPTION_VECTOR;
 
 typedef struct _NOIR_CVM_EXCEPTION_CONTEXT
 {
