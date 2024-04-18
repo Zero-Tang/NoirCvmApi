@@ -504,6 +504,104 @@ typedef struct _NOIR_CVM_EXIT_CONTEXT
 	}VpState;
 }NOIR_CVM_EXIT_CONTEXT,*PNOIR_CVM_EXIT_CONTEXT;
 
+typedef struct _NOIR_EMULATOR_IO_ACCESS_INFO
+{
+	BOOL Direction;
+	USHORT Port;
+	USHORT AccessSize;
+	BYTE Data[4];
+}NOIR_EMULATOR_IO_ACCESS_INFO,*PNOIR_EMULATOR_IO_ACCESS_INFO;
+
+typedef struct _NOIR_EMULATOR_MEMORY_ACCESS_INFO
+{
+	ULONG64 Gpa;
+	BOOL Direction;
+	USHORT AccessSize;
+	BYTE Data[1024];
+}NOIR_EMULATOR_MEMORY_ACCESS_INFO,*PNOIR_EMULATOR_MEMORY_ACCESS_INFO;
+
+typedef enum _NOIR_TRANSLATE_GVA_FLAGS
+{
+	CvTranslateGvaFlagNone=0x0,
+	CvTranslateGvaFlagRead=0x1,
+	CvTranslateGvaFlagWrite=0x2,
+	CvTranslateGvaFlagExecute=0x4,
+	CvTranslateGvaFlagUser=0x8
+}NOIR_TRANSLATE_GVA_FLAGS,*PNOIR_TRANSLATE_GVA_FLAGS;
+
+typedef union _NOIR_EMULATION_STATUS
+{
+	struct
+	{
+		ULONG64 EmulationSuccessful:1;
+		ULONG64 InternalFailure:1;
+		ULONG64 IoPortCallbackFailed:1;
+		ULONG64 MemoryCallbackFailed:1;
+		ULONG64 TranslationFailed:1;
+		ULONG64 UnalignedTranslation:1;
+		ULONG64 ViewRegistersFailed:1;
+		ULONG64 EditRegistersFailed:1;
+		ULONG64 InjectionFailed:1;
+		ULONG64 Reserved:55;
+	};
+	ULONG64 Value;
+}NOIR_EMULATION_STATUS,*PNOIR_EMULATION_STATUS;
+
+typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_IO_PORT_CALLBACK)
+(
+	IN OUT PVOID Context,
+	IN OUT PNOIR_EMULATOR_IO_ACCESS_INFO IoAccess
+);
+
+typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_MEMORY_CALLBACK)
+(
+	IN OUT PVOID Context,
+	IN OUT PNOIR_EMULATOR_MEMORY_ACCESS_INFO MemoryAccess
+);
+
+typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_VIEW_REGISTER_CALLBACK)
+(
+	IN OUT PVOID Context,
+	IN NOIR_CVM_REGISTER_TYPE RegisterType,
+	OUT PVOID RegisterValues
+);
+
+typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_EDIT_REGISTER_CALLBACK)
+(
+	IN OUT PVOID Context,
+	IN NOIR_CVM_REGISTER_TYPE RegisterType,
+	IN PVOID RegisterValues
+);
+
+typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_TRANSLATE_GVA_PAGE_CALLBACK)
+(
+	IN OUT PVOID Context,
+	IN ULONG64 GvaPage,
+	IN NOIR_TRANSLATE_GVA_FLAGS TranslationFlags,
+	OUT PULONG32 TranslationResult,
+	OUT PULONG64 GpaPage
+);
+
+typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_INJECT_EXCEPTION_CALLBACK)
+(
+	IN OUT PVOID Context,
+	IN NOIR_CVM_EXCEPTION_VECTOR Vector,
+	IN BOOL HasErrorCode,
+	IN ULONG32 ErrorCode
+);
+
+typedef struct _NOIR_CVM_EMULATOR_CALLBACKS
+{
+	ULONG32 Size;
+	ULONG32 Reserved;
+	NOIR_CVM_EMULATOR_IO_PORT_CALLBACK IoPortCallback;
+	NOIR_CVM_EMULATOR_MEMORY_CALLBACK MemoryCallback;
+	NOIR_CVM_EMULATOR_VIEW_REGISTER_CALLBACK ViewRegistersCallback;
+	NOIR_CVM_EMULATOR_EDIT_REGISTER_CALLBACK EditRegistersCallback;
+	NOIR_CVM_EMULATOR_TRANSLATE_GVA_PAGE_CALLBACK TranslationCallback;
+	NOIR_CVM_EMULATOR_INJECT_EXCEPTION_CALLBACK InjectionCallback;
+}NOIR_CVM_EMULATOR_CALLBACKS,*PNOIR_CVM_EMULATOR_CALLBACKS;
+
 // Library Support Routine
 BOOL NoirInitializeLibrary();
 void NoirFinalizeLibrary();
@@ -518,6 +616,10 @@ BOOL UnlockPage(IN PVOID Memory,IN ULONG Size);
 
 // Hypervisor Information
 NOIR_STATUS NoirQueryHypervisorStatus(IN NOIR_CVM_HYPERVISOR_STATUS_TYPE StatusType,OUT PVOID Status);
+
+// Instruction Emulation Utility
+NOIR_STATUS NoirTryIoPortEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallbacks,IN OUT PVOID Context,IN PNOIR_CVM_EXIT_CONTEXT ExitContext,OUT PNOIR_EMULATION_STATUS ReturnStatus);
+NOIR_STATUS NoirTryMmioEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallbacks,IN OUT PVOID Context,IN PNOIR_CVM_EXIT_CONTEXT ExitContext,OUT PNOIR_EMULATION_STATUS ReturnStatus);
 
 // Virtual Machine Management
 NOIR_STATUS NoirCreateVirtualMachine(OUT PCVM_HANDLE VirtualMachine);

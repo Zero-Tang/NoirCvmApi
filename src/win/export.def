@@ -14,8 +14,8 @@ MemAlloc @11
 MemFree @12
 PageAlloc @13
 PageFree @14
-LockPage @15
-UnlockPage @16
+NoirTryIoPortEmulation @15
+NoirTryMmioEmulation @16
 NoirSetEventInjection @17
 NoirSetVirtualProcessorOptions @18
 NoirRescindVirtualProcessor @19

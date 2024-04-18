@@ -37,29 +37,3 @@ BOOL PageFree(IN PVOID Memory)
 {
 	return VirtualFree(Memory,0,MEM_RELEASE);
 }
-
-BOOL LockPage(IN PVOID Memory,IN ULONG Size)
-{
-	BOOL bRet;
-	MinWSet+=Size;
-	MaxWSet+=Size;
-	bRet=SetProcessWorkingSetSize(CurrentProcess,MinWSet,MaxWSet);
-	if(bRet)
-	{
-		bRet=VirtualLock(Memory,Size);
-		if(!bRet)NoirDebugPrint("Failed to lock page! Error Code=%u\n",GetLastError());
-	}
-	return bRet;
-}
-
-BOOL UnlockPage(IN PVOID Memory,IN ULONG Size)
-{
-	BOOL bRet=VirtualUnlock(Memory,Size);
-	if(bRet)
-	{
-		MinWSet-=Size;
-		MaxWSet-=Size;
-		bRet=SetProcessWorkingSetSize(CurrentProcess,MinWSet,MaxWSet);
-	}
-	return bRet;
-}

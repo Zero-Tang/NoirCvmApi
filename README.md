@@ -17,7 +17,7 @@ Before you execute any of compilation scripts, you must execute `build_prep.bat`
 
 ### Aggressive Compatibility Option
 This version literally means that it will compile regardless of compatibility. Empirically speaking, the eldest version the compiled library can support is Windows 7. \
-Execute `compchk_win10x64.bat` to compile without optimization or `compfre_win10x64.bat` for compilation with optimization. \
+Execute `compchk_win11x64.bat` to compile without optimization or `compfre_win11x64.bat` for compilation with optimization. \
 To build NoirCvmApi with this option, you must mount [EWDK11-22621](https://docs.microsoft.com/en-us/legal/windows/hardware/enterprise-wdk-license-2022) to V: drive.
 
 ### Retro-compatibility Option

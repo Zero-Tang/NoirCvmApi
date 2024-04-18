@@ -16,7 +16,6 @@ BOOL NoirInitializeLibrary()
 	{
 		ProcessHeap=GetProcessHeap();
 		CurrentProcess=GetCurrentProcess();
-		GetProcessWorkingSetSize(CurrentProcess,&MinWSet,&MaxWSet);
 		return TRUE;
 	}
 	else
