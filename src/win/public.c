@@ -34,6 +34,36 @@ NOIR_STATUS NoirRescindVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 
 	return st;
 }
 
+NOIR_STATUS NoirEditVirtualProcessorRegister2(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,IN PVOID Buffer)
+{
+	NOIR_STATUS st;
+	NOIR_VIEW_EDIT_REGISTER_CONTEXT2 Context;
+	Context.VirtualMachine=VirtualMachine;
+	Context.VpIndex=VpIndex;
+	Context.RegCount=RegisterCount;
+	Context.RegSize=RegisterSize;
+	Context.RegNames=RegisterNames;
+	Context.Buffer=Buffer;
+	Context.Status=&st;
+	NoirControlDriver(IOCTL_CvmEditVcpuReg2,&Context,sizeof(Context),NULL,0,NULL);
+	return st;
+}
+
+NOIR_STATUS NoirViewVirtualProcessorRegister2(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,OUT PVOID Buffer)
+{
+	NOIR_STATUS st;
+	NOIR_VIEW_EDIT_REGISTER_CONTEXT2 Context;
+	Context.VirtualMachine=VirtualMachine;
+	Context.VpIndex=VpIndex;
+	Context.RegCount=RegisterCount;
+	Context.RegSize=RegisterSize;
+	Context.RegNames=RegisterNames;
+	Context.Buffer=Buffer;
+	Context.Status=&st;
+	NoirControlDriver(IOCTL_CvmViewVcpuReg2,&Context,sizeof(Context),NULL,0,NULL);
+	return st;
+}
+
 NOIR_STATUS NoirEditVirtualProcessorRegister(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,IN PVOID Buffer,IN ULONG32 BufferSize)
 {
 	NOIR_STATUS st=NOIR_INSUFFICIENT_RESOURCES;

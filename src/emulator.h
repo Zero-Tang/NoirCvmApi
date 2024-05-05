@@ -6,3 +6,17 @@
 #define NEXT_PAGE_BASE(x)	(PAGE_BASE(x)+PAGE_SIZE)
 
 #define PAGE_OVERFLOW(x,s)	((x+s)>NEXT_PAGE_BASE(x))
+
+NOIR_CVM_REGISTER_NAME StringIoRegisterNames[4]=
+{
+    NoirCvmRegisterRcx,
+    NoirCvmRegisterRsi,
+    NoirCvmRegisterRdi,
+    NoirCvmRegisterRip
+};
+
+NOIR_CVM_REGISTER_NAME RegisterIoRegisterNames[2]=
+{
+    NoirCvmRegisterRax,
+    NoirCvmRegisterRip
+};

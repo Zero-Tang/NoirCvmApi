@@ -22,3 +22,5 @@ NoirRescindVirtualProcessor @19
 NoirQueryGpaAccessingBitmap @20
 NoirClearGpaAccessingBits @21
 NoirQueryHypervisorStatus @22
+NoirViewVirtualProcessorRegister2 @23
+NoirEditVirtualProcessorRegister2 @24

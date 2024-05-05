@@ -19,6 +19,15 @@ NOIR_STATUS NoirTryIoPortEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallb
 	ReturnStatus->Value=0;
 	if(ExitContext->Io.Access.String)
 	{
+		// Returned Registers
+		ULONG64 RegValues[4]=
+		{
+			ExitContext->Io.Rcx,
+			ExitContext->Io.Rsi,
+			ExitContext->Io.Rdi,
+			ExitContext->Rip
+		};
+		LONG64 Increment=ExitContext->Io.Access.OperandSize*(_bittest64(&ExitContext->Rflags,10)?-1:1);
 		// Use Memory to I/O.
 		NOIR_EMULATOR_MEMORY_ACCESS_INFO MemoryAccess;
 		// Translate Addresses before I/O. Note that x86 allows unaligned memory accesses.
@@ -85,30 +94,36 @@ NOIR_STATUS NoirTryIoPortEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallb
 				if(st!=NOIR_SUCCESS)goto MemoryFailed;
 			}
 		}
+		// Adjust registers.
+		if(ExitContext->Io.Access.Repeat)
+			RegValues[0]--;		// With repeat prefix, rcx will be decremented.
+		// Input->es:rdi. Output->ds:rsi.
+		RegValues[IoPortAccess.Direction+1]+=Increment;
+		if(!ExitContext->Io.Access.Repeat || !RegValues[0])
+			RegValues[3]=ExitContext->NextRip;
+		st=EmulatorCallbacks->EditRegistersCallback(Context,StringIoRegisterNames,4,8,RegValues);
 	}
 	else
 	{
+		ULONG64 RegValues[2]=
+		{
+			ExitContext->Io.Rax,
+			ExitContext->NextRip
+		};
 		// Use Register to I/O.
 		*(PULONG32)IoPortAccess.Data=(ULONG32)ExitContext->Io.Rax;
 		st=EmulatorCallbacks->IoPortCallback(Context,&IoPortAccess);
 		if(st!=NOIR_SUCCESS)goto IoFailed;
 		// If input, we need to edit rax register in vCPU.
 		if(IoPortAccess.Direction)
-		{
-			NOIR_GPR_STATE GprState;
-			st=EmulatorCallbacks->ViewRegistersCallback(Context,NoirCvmGeneralPurposeRegister,&GprState);
-			if(st!=NOIR_SUCCESS)goto ViewRegistersFailed;
-			__movsb((PBYTE)&GprState.Rax,IoPortAccess.Data,IoPortAccess.AccessSize);
-			st=EmulatorCallbacks->EditRegistersCallback(Context,NoirCvmGeneralPurposeRegister,&GprState);
-			if(st!=NOIR_SUCCESS)goto EditRegistersFailed;
-		}
+			__movsb((PBYTE)RegValues,IoPortAccess.Data,IoPortAccess.AccessSize);
+		// Finally, advance rip.
+		st=EmulatorCallbacks->EditRegistersCallback(Context,RegisterIoRegisterNames,2,8,RegValues);
+		if(st!=NOIR_SUCCESS)goto EditRegistersFailed;
 	}
 IoSuccess:
 	// This goto route must be the first.
 	ReturnStatus->EmulationSuccessful=1;
-	return st;
-ViewRegistersFailed:
-	ReturnStatus->ViewRegistersFailed=1;
 	return st;
 EditRegistersFailed:
 	ReturnStatus->EditRegistersFailed=1;

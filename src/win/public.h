@@ -18,6 +18,37 @@
 #define IOCTL_CvmRescindVcpu	CTL_CODE_GEN(0x895)
 #define IOCTL_CvmInjectEvent	CTL_CODE_GEN(0x896)
 #define IOCTL_CvmSetVcpuOptions	CTL_CODE_GEN(0x897)
+#define IOCTL_CvmQueryVcpuStats	CTL_CODE_GEN(0x898)
+#define IOCTL_CvmViewVcpuReg2	CTL_CODE_GEN(0x899)
+#define IOCTL_CvmEditVcpuReg2	CTL_CODE_GEN(0x89A)
+
+typedef struct _NOIR_VIEW_EDIT_REGISTER_CONTEXT
+{
+	CVM_HANDLE VirtualMachine;
+	ULONG32 VpIndex;
+	NOIR_CVM_REGISTER_TYPE RegisterType;
+	PVOID DummyBuffer;
+}NOIR_VIEW_EDIT_REGISTER_CONTEXT,*PNOIR_VIEW_EDIT_REGISTER_CONTEXT;
+
+typedef struct _NOIR_VIEW_EDIT_REGISTER_CONTEXT2
+{
+	CVM_HANDLE VirtualMachine;
+	ULONG32 VpIndex;
+	ULONG32 RegCount;
+	ULONG32 RegSize;
+	PNOIR_CVM_REGISTER_NAME RegNames;
+	PVOID Buffer;
+	NOIR_STATUS *Status;
+}NOIR_VIEW_EDIT_REGISTER_CONTEXT2,*PNOIR_VIEW_EDIT_REGISTER_CONTEXT2;
+
+typedef struct _NOIR_QUERY_ADBITMAP_CONTEXT
+{
+	CVM_HANDLE VirtualMachine;
+	ULONG64 GpaStart;
+	ULONG64 BitmapBuffer;
+	ULONG32 BitmapLength;
+	ULONG32 NumberOfPages;
+}NOIR_QUERY_ADBITMAP_CONTEXT,*PNOIR_QUERY_ADBITMAP_CONTEXT;
 
 BOOL NoirControlDriver(IN ULONG IoControlCode,IN PVOID InputBuffer,IN ULONG InputSize,OUT PVOID OutputBuffer,IN ULONG OutputSize,OUT PULONG ReturnLength OPTIONAL);
 void __cdecl NoirDebugPrint(IN PCSTR Format,...);

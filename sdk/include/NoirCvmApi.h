@@ -275,22 +275,72 @@ typedef enum _NOIR_CVM_REGISTER_TYPE
 	NoirCvmMaxmimumRegisterType
 }NOIR_CVM_REGISTER_TYPE,*PNOIR_CVM_REGISTER_TYPE;
 
-typedef struct _NOIR_VIEW_EDIT_REGISTER_CONTEXT
+typedef enum _NOIR_CVM_REGISTER_NAME
 {
-	CVM_HANDLE VirtualMachine;
-	ULONG32 VpIndex;
-	NOIR_CVM_REGISTER_TYPE RegisterType;
-	PVOID DummyBuffer;
-}NOIR_VIEW_EDIT_REGISTER_CONTEXT,*PNOIR_VIEW_EDIT_REGISTER_CONTEXT;
-
-typedef struct _NOIR_QUERY_ADBITMAP_CONTEXT
-{
-	CVM_HANDLE VirtualMachine;
-	ULONG64 GpaStart;
-	ULONG64 BitmapBuffer;
-	ULONG32 BitmapLength;
-	ULONG32 NumberOfPages;
-}NOIR_QUERY_ADBITMAP_CONTEXT,*PNOIR_QUERY_ADBITMAP_CONTEXT;
+	// General-Purpose Registers
+	NoirCvmRegisterRax=0x0,
+	NoirCvmRegisterRcx=0x1,
+	NoirCvmRegisterRdx=0x2,
+	NoirCvmRegisterRbx=0x3,
+	NoirCvmRegisterRsp=0x4,
+	NoirCvmRegisterRbp=0x5,
+	NoirCvmRegisterRsi=0x6,
+	NoirCvmRegisterRdi=0x7,
+	NoirCvmRegisterR8=0x8,
+	NoirCvmRegisterR9=0x9,
+	NoirCvmRegisterR10=0xA,
+	NoirCvmRegisterR11=0xB,
+	NoirCvmRegisterR12=0xC,
+	NoirCvmRegisterR13=0xD,
+	NoirCvmRegisterR14=0xE,
+	NoirCvmRegisterR15=0xF,
+	// Reserve 0x10-0x1F for APX (Advanced Performance Extension)
+	// This extension will implement 16 more GPRs (r16 to r31) in x86.
+	NoirCvmRegisterRflags=0x20,
+	NoirCvmRegisterRip=0x21,
+	// Segment Registers
+	NoirCvmRegisterEs=0x22,
+	NoirCvmRegisterCs=0x23,
+	NoirCvmRegisterSs=0x24,
+	NoirCvmRegisterDs=0x25,
+	NoirCvmRegisterFs=0x26,
+	NoirCvmRegisterGs=0x27,
+	NoirCvmRegisterTr=0x28,
+	NoirCvmRegisterGdtr=0x29,
+	NoirCvmRegisterIdtr=0x2A,
+	NoirCvmRegisterLdtr=0x2B,
+	// Control Registers
+	NoirCvmRegisterCr0=0x30,
+	NoirCvmRegisterCr2=0x32,
+	NoirCvmRegisterCr3=0x33,
+	NoirCvmRegisterCr4=0x34,
+	NoirCvmRegisterCr8=0x38,
+	// Debug Registers
+	NoirCvmRegisterDr0=0x40,
+	NoirCvmRegisterDr1=0x41,
+	NoirCvmRegisterDr2=0x42,
+	NoirCvmRegisterDr3=0x43,
+	NoirCvmRegisterDr6=0x46,
+	NoirCvmRegisterDr7=0x47,
+	// Extended Control Registers
+	NoirCvmRegisterXcr0=0x50,
+	// Model-Specific Registers (MSRs)
+	NoirCvmRegisterTsc=0x1000,
+	NoirCvmRegisterEfer=0x1001,
+	NoirCvmRegisterKgsBase=0x1002,
+	NoirCvmRegisterApicBase=0x1003,
+	NoirCvmRegisterSysEnterCs=0x1004,
+	NoirCvmRegisterSysEnterEsp=0x1005,
+	NoirCvmRegisterSysEnterEip=0x1006,
+	NoirCvmRegisterPat=0x1007,
+	NoirCvmRegisterStar=0x1008,
+	NoirCvmRegisterLStar=0x1009,
+	NoirCvmRegisterCStar=0x100A,
+	NoirCvmRegisterSfMask=0x100B,
+	NoirCvmRegisterStStar=0x100C,
+	// No MSRs goes beyond this definitions.
+	NoirCvmRegisterMsrMax
+}NOIR_CVM_REGISTER_NAME,*PNOIR_CVM_REGISTER_NAME;
 
 typedef enum _NOIR_CVM_INTERCEPT_CODE
 {
@@ -562,14 +612,18 @@ typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_MEMORY_CALLBACK)
 typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_VIEW_REGISTER_CALLBACK)
 (
 	IN OUT PVOID Context,
-	IN NOIR_CVM_REGISTER_TYPE RegisterType,
+	IN PNOIR_CVM_REGISTER_NAME RegisterNames,
+	IN ULONG32 RegisterCount,
+	IN ULONG32 RegsiterSize,
 	OUT PVOID RegisterValues
 );
 
 typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_EDIT_REGISTER_CALLBACK)
 (
 	IN OUT PVOID Context,
-	IN NOIR_CVM_REGISTER_TYPE RegisterType,
+	IN PNOIR_CVM_REGISTER_NAME RegisterNames,
+	IN ULONG32 RegisterCount,
+	IN ULONG32 RegisterSize,
 	IN PVOID RegisterValues
 );
 
@@ -611,8 +665,6 @@ PVOID MemAlloc(IN SIZE_T Length);
 BOOL MemFree(IN PVOID Memory);
 PVOID PageAlloc(IN SIZE_T Length);
 BOOL PageFree(IN PVOID Memory);
-BOOL LockPage(IN PVOID Memory,IN ULONG Size);
-BOOL UnlockPage(IN PVOID Memory,IN ULONG Size);
 
 // Hypervisor Information
 NOIR_STATUS NoirQueryHypervisorStatus(IN NOIR_CVM_HYPERVISOR_STATUS_TYPE StatusType,OUT PVOID Status);
@@ -637,6 +689,8 @@ NOIR_STATUS NoirQueryGpaAccessingBitmap(IN CVM_HANDLE VirtualMachine,IN ULONG64 
 // Virtual Processor Registers
 NOIR_STATUS NoirViewVirtualProcessorRegister(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,OUT PVOID Buffer,IN ULONG32 BufferSize);
 NOIR_STATUS NoirEditVirtualProcessorRegister(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN NOIR_CVM_REGISTER_TYPE RegisterType,IN PVOID Buffer,IN ULONG32 BufferSize);
+NOIR_STATUS NoirViewVirtualProcessorRegister2(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,OUT PVOID Buffer);
+NOIR_STATUS NoirEditVirtualProcessorRegister2(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,IN PVOID Buffer);
 
 // Virtual Processor Run-Control
 NOIR_STATUS NoirRunVirtualProcessor(IN CVM_HANDLE VirtualMachine,IN ULONG32 VpIndex,OUT PNOIR_CVM_EXIT_CONTEXT ExitContext);
