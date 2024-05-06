@@ -579,6 +579,25 @@ typedef enum _NOIR_TRANSLATE_GVA_FLAGS
 	CvTranslateGvaFlagUser=0x8
 }NOIR_TRANSLATE_GVA_FLAGS,*PNOIR_TRANSLATE_GVA_FLAGS;
 
+typedef union _NOIR_TRANSLATE_GVA_RESULT
+{
+	struct
+	{
+		ULONG64 Present:1;
+		ULONG64 Write:1;
+		ULONG64 User:1;
+		ULONG64 ReservedBit:1;
+		ULONG64 Execute:1;
+		ULONG64 ProtectionKey:1;
+		ULONG64 ShadowStack:1;
+		ULONG64 Reserved:24;
+		ULONG64 ReversedMap:1;
+		ULONG64 Reserved2:31;
+		ULONG64 Successful:1;
+	};
+	ULONG64 Value;
+}NOIR_TRANSLATE_GVA_RESULT,*PNOIR_TRANSLATE_GVA_RESULT;
+
 typedef union _NOIR_EMULATION_STATUS
 {
 	struct
@@ -632,7 +651,7 @@ typedef NOIR_STATUS (*NOIR_CVM_EMULATOR_TRANSLATE_GVA_PAGE_CALLBACK)
 	IN OUT PVOID Context,
 	IN ULONG64 GvaPage,
 	IN NOIR_TRANSLATE_GVA_FLAGS TranslationFlags,
-	OUT PULONG32 TranslationResult,
+	OUT PNOIR_TRANSLATE_GVA_RESULT TranslationResult,
 	OUT PULONG64 GpaPage
 );
 

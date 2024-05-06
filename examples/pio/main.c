@@ -4,41 +4,90 @@
 #include <NoirCvmApi.h>
 #include "main.h"
 
+void HvSendToDebugConsole(IN BYTE Data)
+{
+	DWORD dwWrite;
+	WriteFile(PipeHandle,&Data,1,&dwWrite,NULL);
+}
+
 NOIR_STATUS HvIoPortCallback(IN OUT PVOID Context,IN OUT PNOIR_EMULATOR_IO_ACCESS_INFO IoAccess)
 {
-	printf("I/O Direction: %s, Port=0x%04X, Size=%u\n",IoAccess->Direction?"in":"out",IoAccess->Port,IoAccess->AccessSize);
-	if(!IoAccess->Direction)printf("Output Data: %.*s\n",IoAccess->AccessSize,IoAccess->Data);
+	if(!IoAccess->Direction)
+	{
+		if(IoAccess->Port<=ISA_DEBUG_CON_PORT && IoAccess->Port+IoAccess->AccessSize>ISA_DEBUG_CON_PORT)
+		{
+			// Debug Port. Send to named pipe.
+			HvSendToDebugConsole(IoAccess->Data[ISA_DEBUG_CON_PORT-IoAccess->Port]);
+		}
+		else if(IoAccess->Port==0)
+		{
+			// Output to Console.
+			printf("Output Data: %.*s\n",IoAccess->AccessSize,IoAccess->Data);
+		}
+	}
+	else
+	{
+		if(IoAccess->Port<=ISA_DEBUG_CON_PORT && IoAccess->Port+IoAccess->AccessSize>ISA_DEBUG_CON_PORT)
+		{
+			// Debug Port. Always return ISA-DebugCon signature byte.
+			IoAccess->Data[ISA_DEBUG_CON_PORT-IoAccess->Port]=0xE9;
+		}
+		else if(IoAccess->Port==0)
+		{
+			IoAccess->Data[0]=InputSource[InputPointer++];
+			if(InputPointer==sizeof(InputSource))InputPointer=0;
+		}
+	}
 	return NOIR_SUCCESS;
 }
 
 NOIR_STATUS HvMemoryCallback(IN OUT PVOID Context,IN OUT PNOIR_EMULATOR_MEMORY_ACCESS_INFO MemoryAccess)
 {
-	puts("Memory Callback is called!");
-	return NOIR_NOT_IMPLEMENTED;
+	// Note that this callback does not necessarily mean Memory-Mapped I/O.
+	if(MemoryAccess->Gpa+MemoryAccess->AccessSize<VIRTUAL_MEMORY_SIZE)
+	{
+		PVOID Hva=(PVOID)((ULONG64)VirtualMemory+MemoryAccess->Gpa);
+		if(MemoryAccess->Direction)
+			RtlCopyMemory(Hva,MemoryAccess->Data,MemoryAccess->AccessSize);
+		else
+			RtlCopyMemory(MemoryAccess->Data,Hva,MemoryAccess->AccessSize);
+		return NOIR_SUCCESS;
+	}
+	return NOIR_UNSUCCESSFUL;
 }
 
 NOIR_STATUS HvViewRegisterCallback(IN OUT PVOID Context,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,OUT PVOID RegisterValues)
 {
-	puts("View-Register Callback is called!");
 	return NoirViewVirtualProcessorRegister2(VmHandle,0,RegisterNames,RegisterCount,RegisterSize,RegisterValues);
 }
 
 NOIR_STATUS HvEditRegisterCallback(IN OUT PVOID Context,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,IN PVOID RegisterValues)
 {
-	puts("Edit-Register Callback is called!");
 	return NoirEditVirtualProcessorRegister2(VmHandle,0,RegisterNames,RegisterCount,RegisterSize,RegisterValues);
 }
 
-NOIR_STATUS HvTranslateGvaPageCallback(IN OUT PVOID Context,IN ULONG64 GvaPage,IN NOIR_TRANSLATE_GVA_FLAGS TranslationFlags,OUT PULONG32 TranslationResult,OUT PULONG64 GpaPage)
+NOIR_STATUS HvTranslateGvaPageCallback(IN OUT PVOID Context,IN ULONG64 GvaPage,IN NOIR_TRANSLATE_GVA_FLAGS TranslationFlags,OUT PNOIR_TRANSLATE_GVA_RESULT TranslationResult,OUT PULONG64 GpaPage)
 {
-	puts("Translate-GVA Callback is called!");
-	return NOIR_NOT_IMPLEMENTED;
+	// This example only implements a range.
+	if(GvaPage<VIRTUAL_MEMORY_SIZE)
+	{
+		*GpaPage=GvaPage;
+		TranslationResult->Value=0;
+		TranslationResult->Successful=1;
+	}
+	else
+	{
+		*GpaPage=0;
+		TranslationResult->Value=0;
+		TranslationResult->Write=(TranslationFlags&CvTranslateGvaFlagWrite)==CvTranslateGvaFlagWrite;
+	}
+	return NOIR_SUCCESS;
 }
 
 NOIR_STATUS HvInjectExceptionCallback(IN OUT PVOID Context,IN NOIR_CVM_EXCEPTION_VECTOR Vector,IN BOOL HasErrorCode,IN ULONG32 ErrorCode)
 {
 	puts("Exception-Injection Callback is called!");
-	return NOIR_NOT_IMPLEMENTED;
+	return NoirSetEventInjection(VmHandle,0,TRUE,Vector,NoirEventTypeException,0,HasErrorCode,ErrorCode);
 }
 
 void HvRunVirtualMachine()
@@ -55,13 +104,18 @@ void HvRunVirtualMachine()
 				case CvIoInstruction:
 				{
 					NOIR_EMULATION_STATUS retst;
-					printf("I/O Instruction intercepted at rip=0x%llX!\n",ExitContext.Rip);
 					st=NoirTryIoPortEmulation(&EmulatorCallbacks,NULL,&ExitContext,&retst);
 					if(st!=NOIR_SUCCESS)
 					{
 						printf("Failed to emulate I/O instruction! Return-Status: 0x%llX\n",retst.Value);
 						ContinueExecution=FALSE;
 					}
+					break;
+				}
+				case CvHltInstruction:
+				{
+					puts("The guest program halted execution!");
+					ContinueExecution=FALSE;
 					break;
 				}
 				case CvException:
@@ -171,13 +225,13 @@ NOIR_STATUS HvInitializeVirtualMachine()
 	// EFER
 	st=NoirEditVirtualProcessorRegister(VmHandle,0,NoirCvmEferRegister,&Efer,sizeof(Efer));
 	printf("Set EFER Register Status=0x%X\n",st);
-	// vCPU Options
+	// vCPU Options: Intercept exceptions
 	VpOpt.Value=0;
 	VpOpt.InterceptExceptions=1;
-	VpOpt.DecodeMemoryAccessInstruction=1;
 	st=NoirSetVirtualProcessorOptions(VmHandle,0,NoirCvmGuestVpOptions,VpOpt.Value);
 	printf("Set vCPU Options Status: 0x%X\n",st);
-	st=NoirSetVirtualProcessorOptions(VmHandle,0,NoirCvmExceptionBitmap,0xFFFFFFFF);
+	// Exclude #PF interception
+	st=NoirSetVirtualProcessorOptions(VmHandle,0,NoirCvmExceptionBitmap,0xFFFFBFFF);
 	printf("Set Exception Bitmap Status: 0x%X\n",st);
 	return st;
 }
@@ -208,11 +262,37 @@ BOOL LoadProgram(IN PSTR ProgramFileName)
 	}
 }
 
+BOOL RunConsole()
+{
+	STARTUPINFOA SI={0};
+	BOOL Result;
+	SI.cb=sizeof(SI);
+	Result=CreateProcessA(NULL,"putty -serial \\\\.\\pipe\\NoirCvmPioExample",NULL,NULL,FALSE,0,NULL,NULL,&SI,&ConsoleProcInfo);
+	if(Result==FALSE)printf("Failed to run PuTTY! Error Code: %u\n",GetLastError());
+	return Result;
+}
+
+BOOL InitPipe()
+{
+	BOOL Result=FALSE;
+	PipeHandle=CreateNamedPipeA("\\\\.\\pipe\\NoirCvmPioExample",PIPE_ACCESS_DUPLEX|FILE_FLAG_FIRST_PIPE_INSTANCE,PIPE_TYPE_BYTE,1,1024,1024,0,NULL);
+	if(PipeHandle==INVALID_HANDLE_VALUE)
+		printf("Failed to create console pipe! Error Code: %u\n",GetLastError());
+	else
+		Result=TRUE;
+	return Result;
+}
+
 int main(int argc,char* argv[],char* envp[])
 {
 	BOOL bRet=NoirInitializeLibrary();
 	if(bRet)
 	{
+		if(InitPipe()==FALSE)return 1;
+		if(RunConsole()==FALSE)
+			puts("Warning: Failed to run PuTTY! You need to connect to guest console (\\\\.\\pipe\\NoirCvmPioExample) manually!");
+		else
+			ConnectNamedPipe(PipeHandle,NULL);
 		VirtualMemory=VirtualAlloc(NULL,VIRTUAL_MEMORY_SIZE,MEM_COMMIT,PAGE_READWRITE);
 		if(VirtualMemory==NULL)
 			printf("Failed to allocate virtual memory! Error Code: %u\n",GetLastError());
@@ -238,6 +318,7 @@ int main(int argc,char* argv[],char* envp[])
 			}
 			VirtualFree(VirtualMemory,0,MEM_RELEASE);
 		}
+		CloseHandle(PipeHandle);
 	}
 	else
 	{

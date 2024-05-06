@@ -7,16 +7,18 @@
 
 #define PAGE_OVERFLOW(x,s)	((x+s)>NEXT_PAGE_BASE(x))
 
+void __cdecl NoirDebugPrint(IN PCSTR Format,...);
+
 NOIR_CVM_REGISTER_NAME StringIoRegisterNames[4]=
 {
-    NoirCvmRegisterRcx,
-    NoirCvmRegisterRsi,
-    NoirCvmRegisterRdi,
-    NoirCvmRegisterRip
+	NoirCvmRegisterRcx,
+	NoirCvmRegisterRsi,
+	NoirCvmRegisterRdi,
+	NoirCvmRegisterRip
 };
 
 NOIR_CVM_REGISTER_NAME RegisterIoRegisterNames[2]=
 {
-    NoirCvmRegisterRax,
-    NoirCvmRegisterRip
+	NoirCvmRegisterRax,
+	NoirCvmRegisterRip
 };

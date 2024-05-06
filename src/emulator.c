@@ -2,13 +2,6 @@
 #include <NoirCvmApi.h>
 #include "emulator.h"
 
-NOIR_STATUS static NoirThrowPageFault(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallbacks,IN OUT PVOID Context,IN ULONG32 TranslationResult,OUT BOOL *Thrown)
-{
-	// FIXME: Implement Translation-Result to Page-Fault Error Code mechanism.
-	NOIR_STATUS st=NOIR_SUCCESS;
-	return st;
-}
-
 NOIR_STATUS NoirTryIoPortEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallbacks,IN OUT PVOID Context,IN PNOIR_CVM_EXIT_CONTEXT ExitContext,OUT PNOIR_EMULATION_STATUS ReturnStatus)
 {
 	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
@@ -27,6 +20,7 @@ NOIR_STATUS NoirTryIoPortEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallb
 			ExitContext->Io.Rdi,
 			ExitContext->Rip
 		};
+		// Adjust Increment of rsi/rdi according to rflags.df bit and operand size.
 		LONG64 Increment=ExitContext->Io.Access.OperandSize*(_bittest64(&ExitContext->Rflags,10)?-1:1);
 		// Use Memory to I/O.
 		NOIR_EMULATOR_MEMORY_ACCESS_INFO MemoryAccess;
@@ -35,15 +29,18 @@ NOIR_STATUS NoirTryIoPortEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallb
 		USHORT CopySize1,CopySize2=0;
 		ULONG64 Gva=IoPortAccess.Direction?ExitContext->Io.Rdi:ExitContext->Io.Rsi;
 		NOIR_TRANSLATE_GVA_FLAGS TranslationFlags=IoPortAccess.Direction?CvTranslateGvaFlagWrite:CvTranslateGvaFlagRead;
-		ULONG32 TranslationResult;
-		BOOL ExceptionThrown;
+		NOIR_TRANSLATE_GVA_RESULT TranslationResult;
 		if(ExitContext->VpState.Cpl==3)TranslationFlags|=CvTranslateGvaFlagUser;
 		st=EmulatorCallbacks->TranslationCallback(Context,PAGE_BASE(Gva),TranslationFlags,&TranslationResult,&Gpa1);
 		if(st!=NOIR_SUCCESS)goto TranslationFailed;
 		// Translation may result in page faults.
-		st=NoirThrowPageFault(EmulatorCallbacks,Context,TranslationResult,&ExceptionThrown);
-		if(st!=NOIR_SUCCESS)goto InjectionFailed;
-		if(ExceptionThrown)goto IoSuccess;
+		if(!TranslationResult.Successful)
+		{
+			st=EmulatorCallbacks->InjectionCallback(Context,CvPageFault,TRUE,(ULONG32)TranslationResult.Value);
+			if(st!=NOIR_SUCCESS)goto InjectionFailed;
+			// No need to I/O if there's page fault.
+			goto IoSuccess;
+		}
 		Gpa1+=PAGE_OFFSET(Gva);
 		CopySize1=IoPortAccess.AccessSize;
 		// Unaligned memory accesses may overflow the page.
@@ -52,9 +49,13 @@ NOIR_STATUS NoirTryIoPortEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallb
 			st=EmulatorCallbacks->TranslationCallback(Context,NEXT_PAGE_BASE(Gva),0,&TranslationResult,&Gpa2);
 			if(st!=NOIR_SUCCESS)goto InjectionFailed;
 			// Translation may result in page faults.
-			st=NoirThrowPageFault(EmulatorCallbacks,Context,TranslationResult,&ExceptionThrown);
-			if(st!=NOIR_SUCCESS)goto TranslationFailed;
-			if(ExceptionThrown)goto IoSuccess;
+			if(!TranslationResult.Successful)
+			{
+				st=EmulatorCallbacks->InjectionCallback(Context,CvPageFault,TRUE,(ULONG32)TranslationResult.Value);
+				if(st!=NOIR_SUCCESS)goto InjectionFailed;
+				// No need to I/O if there's page fault.
+				goto IoSuccess;
+			}
 			CopySize2=(USHORT)(Gva+IoPortAccess.AccessSize-NEXT_PAGE_BASE(Gva));
 			CopySize1-=CopySize2;
 		}
