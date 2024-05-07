@@ -11,8 +11,6 @@ In order to thoroughly test the Emulator API, the guest program will be complete
 - Register Input: Retrieve input from User Hypervisor, process it, and send to output.
 - String I/O: The I/O will be done through memory. This kind of testing mainly focuses on the direction of I/O, memory translations and exceptions.
 
-This example currently does not care about the Port number.
-
 ## Emulated Hardware
 This example emulates two hardware. One test-case hardware and one debug hardware.
 

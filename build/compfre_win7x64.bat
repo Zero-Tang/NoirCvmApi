@@ -21,9 +21,11 @@ cl ..\src\win\drv_comm.c /I"%incpath%\api" /I"%incpath%\crt" /Zi /nologo /W3 /WX
 
 cl ..\src\win\public.c /I"%incpath%\api" /I"%incpath%\crt" /I"..\sdk\include" /Zi /nologo /W3 /WX /O2 /Oi /D"_AMD64_" /D"_M_AMD64" /D"_WIN64" /D"_UNICODE" /D"UNICODE" /Zc:wchar_t /FAcs /Fa"%objpath%\public.cod" /Fo"%objpath%\public.obj" /Fd"%objpath%\vc90.pdb" /GS- /Gy /TC /c /errorReport:queue
 
+cl ..\src\emulator.c /I"%incpath%\api" /I"%incpath%\crt" /I"..\sdk\include" /Zi /nologo /W3 /WX /O2 /Oi /D"_AMD64_" /D"_M_AMD64" /D"_WIN64" /D"_UNICODE" /D"UNICODE" /Zc:wchar_t /FAcs /Fa"%objpath%\emulator.cod" /Fo"%objpath%\emulator.obj" /Fd"%objpath%\vc90.pdb" /GS- /TC /c /errorReport:queue
+
 rc /d"_AMD64_" /i"%incpath%\api" /i"%incpath%\crt" /fo"%objpath%\version.res" /n ..\src\win\version.rc
 
 echo ============Start Linking============
-link "%objpath%\misc.obj" "%objpath%\drv_comm.obj" "%objpath%\public.obj" "%objpath%\version.res" /LIBPATH:"%libpath%\win7\amd64" /LIBPATH:"%libpath%\Crt\amd64" /NODEFAULTLIB "kernel32.lib" "msvcrt.lib" /NOLOGO /DEBUG /INCREMENTAL:NO /NOENTRY /DEF:"..\src\win\export.def" /OPT:ICF /OPT:REF /PDB:"%objpath%\NoirCvmApi.pdb" /OUT:"%binpath%\NoirCvmApi.dll" /SUBSYSTEM:WINDOWS /DLL /Machine:X64 /ERRORREPORT:QUEUE
+link "%objpath%\misc.obj" "%objpath%\drv_comm.obj" "%objpath%\public.obj" "%objpath%\emulator.obj" "%objpath%\version.res" /LIBPATH:"%libpath%\win7\amd64" /LIBPATH:"%libpath%\Crt\amd64" /NODEFAULTLIB "kernel32.lib" "msvcrt.lib" /NOLOGO /DEBUG /INCREMENTAL:NO /NOENTRY /DEF:"..\src\win\export.def" /OPT:ICF /OPT:REF /PDB:"%objpath%\NoirCvmApi.pdb" /OUT:"%binpath%\NoirCvmApi.dll" /SUBSYSTEM:WINDOWS /DLL /Machine:X64 /ERRORREPORT:QUEUE
 
 if "%~1"=="/s" (echo Completed!) else (pause)

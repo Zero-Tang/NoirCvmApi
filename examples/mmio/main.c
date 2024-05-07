@@ -18,6 +18,25 @@
 #define MmioGpaConsole				0x00200004
 #define MmioGpaPower				0x00200008
 
+NOIR_STATUS HvIoPortCallback(IN OUT PVOID Context,IN OUT PNOIR_EMULATOR_IO_ACCESS_INFO IoAccess);
+NOIR_STATUS HvMemoryCallback(IN OUT PVOID Context,IN OUT PNOIR_EMULATOR_MEMORY_ACCESS_INFO MemoryAccess);
+NOIR_STATUS HvViewRegisterCallback(IN OUT PVOID Context,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,OUT PVOID RegisterValues);
+NOIR_STATUS HvEditRegisterCallback(IN OUT PVOID Context,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,IN PVOID RegisterValues);
+NOIR_STATUS HvTranslateGvaPageCallback(IN OUT PVOID Context,IN ULONG64 GvaPage,IN NOIR_TRANSLATE_GVA_FLAGS TranslationFlags,OUT PNOIR_TRANSLATE_GVA_RESULT TranslationResult,OUT PULONG64 GpaPage);
+NOIR_STATUS HvInjectExceptionCallback(IN OUT PVOID Context,IN NOIR_CVM_EXCEPTION_VECTOR Vector,IN BOOL HasErrorCode,IN ULONG32 ErrorCode);
+
+NOIR_CVM_EMULATOR_CALLBACKS EmulatorCallbacks=
+{
+	sizeof(NOIR_CVM_EMULATOR_CALLBACKS),
+	0,
+	HvIoPortCallback,
+	HvMemoryCallback,
+	HvViewRegisterCallback,
+	HvEditRegisterCallback,
+	HvTranslateGvaPageCallback,
+	HvInjectExceptionCallback
+};
+
 HANDLE PipeHandle=INVALID_HANDLE_VALUE;
 CVM_HANDLE VmHandle=0;
 PVOID VirtualMemory=NULL;
@@ -131,100 +150,110 @@ NOIR_STATUS InitVM()
 	return st;
 }
 
-BOOL HandleMmio(IN PNOIR_CVM_MEMORY_ACCESS_CONTEXT MmioContext)
+NOIR_STATUS HvIoPortCallback(IN OUT PVOID Context,IN OUT PNOIR_EMULATOR_IO_ACCESS_INFO IoAccess)
 {
-	// Currently, we only expect a 32-bit input/output;
-	ULONG32 Data=0;
-	ULONG64 Gpr[16];
-	NoirViewVirtualProcessorRegister(VmHandle,0,NoirCvmGeneralPurposeRegister,Gpr,sizeof(Gpr));
-	if(MmioContext->Access.Write)
+	puts("Port I/O is not implemented in this example!");
+	return NOIR_NOT_IMPLEMENTED;
+}
+
+NOIR_STATUS HvMemoryCallback(IN OUT PVOID Context,IN OUT PNOIR_EMULATOR_MEMORY_ACCESS_INFO MemoryAccess)
+{
+	// Note that this callback does not necessarily mean Memory-Mapped I/O.
+	if(MemoryAccess->Gpa+MemoryAccess->AccessSize<VirtualMemorySize)
 	{
-		switch(MmioContext->Flags.InstructionCode)
+		// Regular Memory Access.
+		PVOID Hva=(PVOID)((ULONG64)VirtualMemory+MemoryAccess->Gpa);
+		if(MemoryAccess->Direction)
+			RtlCopyMemory(Hva,MemoryAccess->Data,MemoryAccess->AccessSize);
+		else
+			RtlCopyMemory(MemoryAccess->Data,Hva,MemoryAccess->AccessSize);
+		return NOIR_SUCCESS;
+	}
+	else
+	{
+		PBOOLEAN ContinueExecution=(PBOOLEAN)Context;
+		// Memory-Mapped I/O.
+		switch(MemoryAccess->Gpa)
 		{
-			case NoirCvmInstructionCodeMov:
+			case MmioGpaVersion:
 			{
-				switch(MmioContext->Flags.OperandClass)
+				if(MemoryAccess->Direction)
 				{
-					case NoirCvmOperandClassGpr:
+					puts("You can't write to a version register!");
+				}
+				else
+				{
+					*(PULONG32)MemoryAccess->Data=0x12345678;
+				}
+				break;
+			}
+			case MmioGpaConsole:
+			{
+				if(MemoryAccess->Direction)
+				{
+					DWORD dwWrite;
+					WriteFile(PipeHandle,MemoryAccess->Data,1,&dwWrite,NULL);
+				}
+				else
+				{
+					puts("Reading from console is currently unsupported!");
+				}
+				break;
+			}
+			case MmioGpaPower:
+			{
+				if(MemoryAccess->Direction)
+				{
+					if(*(PULONG32)MemoryAccess->Data==0xAA55)
 					{
-						Data=(ULONG32)Gpr[MmioContext->Flags.OperandCode];
-						printf("Register Data=0x%X\t Code=%llu\n",Data,MmioContext->Flags.OperandCode);
-						break;
-					}
-					case NoirCvmOperandClassImmediate:
-					{
-						Data=(ULONG32)MmioContext->Operand.Immediate.u;
-						break;
-					}
-					default:
-					{
-						printf("Unrecognizable MMIO operand class (%llu)!\n",MmioContext->Flags.OperandClass);
-						return FALSE;
+						puts("Shutdown is requested!");
+						*ContinueExecution=FALSE;
 					}
 				}
 				break;
 			}
 			default:
 			{
-				printf("Unknown MMIO Instruction Code (%llu)!\n",MmioContext->Flags.InstructionCode);
-				return FALSE;
+				printf("Unknown MMIO Address! GPA=0x%llX\n",MemoryAccess->Gpa);
+				break;
 			}
 		}
 	}
-	switch(MmioContext->Gpa)
+	return NOIR_SUCCESS;
+}
+
+NOIR_STATUS HvViewRegisterCallback(IN OUT PVOID Context,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,OUT PVOID RegisterValues)
+{
+	return NoirViewVirtualProcessorRegister2(VmHandle,0,RegisterNames,RegisterCount,RegisterSize,RegisterValues);
+}
+
+NOIR_STATUS HvEditRegisterCallback(IN OUT PVOID Context,IN PNOIR_CVM_REGISTER_NAME RegisterNames,IN ULONG32 RegisterCount,IN ULONG32 RegisterSize,IN PVOID RegisterValues)
+{
+	return NoirEditVirtualProcessorRegister2(VmHandle,0,RegisterNames,RegisterCount,RegisterSize,RegisterValues);
+}
+
+NOIR_STATUS HvTranslateGvaPageCallback(IN OUT PVOID Context,IN ULONG64 GvaPage,IN NOIR_TRANSLATE_GVA_FLAGS TranslationFlags,OUT PNOIR_TRANSLATE_GVA_RESULT TranslationResult,OUT PULONG64 GpaPage)
+{
+	// This example only implements a range.
+	if(GvaPage<VirtualMemorySize)
 	{
-		case MmioGpaVersion:
-		{
-			if(MmioContext->Access.Write)
-			{
-				puts("You can't write to a version register!");
-				return FALSE;
-			}
-			else
-			{
-				Data=0x12345678;
-			}
-			break;
-		}
-		case MmioGpaConsole:
-		{
-			if(MmioContext->Access.Write)
-			{
-				DWORD dwWrite;
-				WriteFile(PipeHandle,&Data,1,&dwWrite,NULL);
-			}
-			else
-			{
-				puts("Reading from console is currently unsupported!");
-				return FALSE;
-			}
-			break;
-		}
-		case MmioGpaPower:
-		{
-			if(MmioContext->Access.Write)
-			{
-				if(Data==0xAA55)
-				{
-					puts("Shutdown is requested!");
-					return FALSE;
-				}
-			}
-			break;
-		}
-		default:
-		{
-			printf("Unknown MMIO Address! GPA=0x%llX\n",MmioContext->Gpa);
-			return FALSE;
-		}
+		*GpaPage=GvaPage;
+		TranslationResult->Value=0;
+		TranslationResult->Successful=1;
 	}
-	if(MmioContext->Access.Write==FALSE)
+	else
 	{
-		printf("Operand Size: %llu\n",MmioContext->Flags.OperandSize);
-		RtlCopyMemory(&Gpr[MmioContext->Flags.OperandCode],&Data,MmioContext->Flags.OperandSize);
-		NoirEditVirtualProcessorRegister(VmHandle,0,NoirCvmGeneralPurposeRegister,Gpr,sizeof(Gpr));
+		*GpaPage=0;
+		TranslationResult->Value=0;
+		TranslationResult->Write=(TranslationFlags&CvTranslateGvaFlagWrite)==CvTranslateGvaFlagWrite;
 	}
-	return TRUE;
+	return NOIR_SUCCESS;
+}
+
+NOIR_STATUS HvInjectExceptionCallback(IN OUT PVOID Context,IN NOIR_CVM_EXCEPTION_VECTOR Vector,IN BOOL HasErrorCode,IN ULONG32 ErrorCode)
+{
+	puts("Exception-Injection Callback is called!");
+	return NoirSetEventInjection(VmHandle,0,TRUE,Vector,NoirEventTypeException,0,HasErrorCode,ErrorCode);
 }
 
 void RunVM()
@@ -252,20 +281,17 @@ void RunVM()
 				}
 				case CvMemoryAccess:
 				{
+					NOIR_EMULATION_STATUS EmuSt;
 					printf("Memory-Access was intercepted at GPA=0x%llX! Rip=0x%llX!\n",ExitContext.MemoryAccess.Gpa,ExitContext.Rip);
 					printf("Instruction Bytes (%llu): ",ExitContext.NextRip-ExitContext.Rip);
 					for(ULONG64 i=0;i<ExitContext.NextRip-ExitContext.Rip;i++)printf("%02X ",ExitContext.MemoryAccess.InstructionBytes[i]);
 					putc('\n',stdout);
 					// MMIO.
-					if(!ExitContext.MemoryAccess.Flags.Decoded)
+					st=NoirTryMmioEmulation(&EmulatorCallbacks,&ContinueExecution,&ExitContext,&EmuSt);
+					if(st!=NOIR_SUCCESS)
 					{
-						puts("NoirVisor's internal emulator did not emulate the MMIO instruction!");
+						printf("Failed to emulate MMIO instruction! Return-Status: 0x%llX\n",EmuSt.Value);
 						ContinueExecution=FALSE;
-					}
-					else
-					{
-						ContinueExecution=HandleMmio(&ExitContext.MemoryAccess);
-						if(ContinueExecution)NoirEditVirtualProcessorRegister(VmHandle,0,NoirCvmInstructionPointer,&ExitContext.NextRip,8);
 					}
 					break;
 				}

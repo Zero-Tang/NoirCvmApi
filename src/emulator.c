@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <strsafe.h>
 #include <NoirCvmApi.h>
 #include "emulator.h"
 
@@ -143,7 +144,133 @@ IoFailed:
 	return st;
 }
 
+void static NoirPrintMemoryAccessInstruction(IN PNOIR_CVM_EXIT_CONTEXT ExitContext)
+{
+	CHAR RawByteString[48];
+	BYTE i=0;
+	for(;i<15;i++)StringCbPrintfA(&RawByteString[i*3],sizeof(RawByteString)-i*3,"%02X ",ExitContext->MemoryAccess.InstructionBytes[i]);
+	NoirDebugPrint("Rip=0x%016llX, Instruction Raw Bytes: %s\n",ExitContext->Rip,RawByteString);
+}
+
 NOIR_STATUS NoirTryMmioEmulation(IN PNOIR_CVM_EMULATOR_CALLBACKS EmulatorCallbacks,IN OUT PVOID Context,IN PNOIR_CVM_EXIT_CONTEXT ExitContext,OUT PNOIR_EMULATION_STATUS ReturnStatus)
 {
-	return NOIR_NOT_IMPLEMENTED;
+	NOIR_STATUS st=NOIR_UNSUCCESSFUL;
+	ReturnStatus->Value=0;
+	if(!ExitContext->MemoryAccess.Flags.Decoded)
+	{
+		NoirDebugPrint("This memory access is not decoded by NoirVisor! Enable the decoder in vCPU options!\n");
+		goto NonDecoded;
+	}
+	switch(ExitContext->MemoryAccess.Flags.InstructionCode)
+	{
+		case NoirCvmInstructionCodeMov:
+		{
+			NOIR_CVM_REGISTER_NAME RipName=NoirCvmRegisterRip;
+			NOIR_EMULATOR_MEMORY_ACCESS_INFO MemoryAccess;
+			MemoryAccess.Gpa=ExitContext->MemoryAccess.Gpa;
+			MemoryAccess.Direction=ExitContext->MemoryAccess.Access.Write;
+			MemoryAccess.AccessSize=(USHORT)ExitContext->MemoryAccess.Flags.OperandSize;
+			switch(ExitContext->MemoryAccess.Flags.OperandClass)
+			{
+				case NoirCvmOperandClassGpr:
+				case NoirCvmOperandClassGpr8Hi:
+				{
+					BYTE GprVal[8];
+					NOIR_CVM_REGISTER_NAME MmioRegisterName=NoirCvmRegisterRax+ExitContext->MemoryAccess.Flags.OperandCode;
+					if(MemoryAccess.Direction)
+					{
+						// This is output, so read from registers.
+						st=EmulatorCallbacks->ViewRegistersCallback(Context,&MmioRegisterName,1,8,GprVal);
+						if(st!=NOIR_SUCCESS)goto ViewRegistersFailed;
+						// Copy but differentiate the operand class.
+						if(ExitContext->MemoryAccess.Flags.OperandClass==NoirCvmOperandClassGpr8Hi)
+							MemoryAccess.Data[0]=GprVal[1];
+						else
+							*(PULONG64)MemoryAccess.Data=*(PULONG64)GprVal;
+					}
+					st=EmulatorCallbacks->MemoryCallback(Context,&MemoryAccess);
+					if(st!=NOIR_SUCCESS)goto MmioFailed;
+					if(!MemoryAccess.Direction)
+					{
+						// This in input, so write to registers.
+						// Copy but differentiate the operand class.
+						if(ExitContext->MemoryAccess.Flags.OperandClass==NoirCvmOperandClassGpr8Hi)
+							GprVal[1]=MemoryAccess.Data[0];
+						else
+						{
+							__movsb(GprVal,MemoryAccess.Data,MemoryAccess.AccessSize);
+							// If the input operand is 32-bit, clear high 32-bits.
+							if(MemoryAccess.AccessSize==4)*(PULONG32)&GprVal[4]=0;
+						}
+						st=EmulatorCallbacks->EditRegistersCallback(Context,&MmioRegisterName,1,8,GprVal);
+						if(st!=NOIR_SUCCESS)goto EditRegistersFailed;
+					}
+					break;
+				}
+				case NoirCvmOperandClassImmediate:
+				{
+					// Only possible for outputs.
+					*(PULONG64)MemoryAccess.Data=ExitContext->MemoryAccess.Operand.Immediate.u;
+					st=EmulatorCallbacks->MemoryCallback(Context,&MemoryAccess);
+					if(st!=NOIR_SUCCESS)goto MmioFailed;
+					break;
+				}
+				case NoirCvmOperandClassSegSel:
+				{
+					SEGMENT_REGISTER Seg;
+					NOIR_CVM_REGISTER_NAME MmioRegisterName=NoirCvmRegisterEs+ExitContext->MemoryAccess.Flags.OperandCode;
+					if(MemoryAccess.Direction)
+					{
+						st=EmulatorCallbacks->ViewRegistersCallback(Context,&MmioRegisterName,1,sizeof(Seg),&Seg);
+						if(st!=NOIR_SUCCESS)goto ViewRegistersFailed;
+						*(PUSHORT)MemoryAccess.Data=Seg.Selector;
+					}
+					st=EmulatorCallbacks->MemoryCallback(Context,&MemoryAccess);
+					if(st!=NOIR_SUCCESS)goto MmioFailed;
+					if(!MemoryAccess.Direction)
+					{
+						// This is input, so write to registers.
+						Seg.Selector=*(PUSHORT)MemoryAccess.Data;
+						st=EmulatorCallbacks->EditRegistersCallback(Context,&MmioRegisterName,1,sizeof(Seg),&Seg);
+						if(st!=NOIR_SUCCESS)goto EditRegistersFailed;
+					}
+					break;
+				}
+				default:
+				{
+					NoirDebugPrint("Unknown operand class in mov instruction!\n",ExitContext->MemoryAccess.Flags.OperandClass);
+					NoirPrintMemoryAccessInstruction(ExitContext);
+					goto InternalFailure;
+				}
+			}
+			// Edit Rip.
+			st=EmulatorCallbacks->EditRegistersCallback(Context,&RipName,1,8,&ExitContext->NextRip);
+			if(st!=NOIR_SUCCESS)goto EditRegistersFailed;
+			goto MmioSuccess;
+		}
+		default:
+		{
+			NoirDebugPrint("Unknown MMIO Instruction Code: 0x%04X!\n",ExitContext->MemoryAccess.Flags.InstructionCode);
+			NoirPrintMemoryAccessInstruction(ExitContext);
+			goto InternalFailure;
+		}
+	}
+MmioSuccess:
+	ReturnStatus->EmulationSuccessful=1;
+	return st;
+MmioFailed:
+	ReturnStatus->MemoryCallbackFailed=1;
+	return st;
+ViewRegistersFailed:
+	ReturnStatus->ViewRegistersFailed=1;
+	return st;
+EditRegistersFailed:
+	ReturnStatus->EditRegistersFailed=1;
+	return st;
+InternalFailure:
+	ReturnStatus->InternalFailure=1;
+	return st;
+NonDecoded:
+	ReturnStatus->UndecodedMmio=1;
+	return st;
 }

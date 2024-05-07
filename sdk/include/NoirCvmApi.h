@@ -611,7 +611,8 @@ typedef union _NOIR_EMULATION_STATUS
 		ULONG64 ViewRegistersFailed:1;
 		ULONG64 EditRegistersFailed:1;
 		ULONG64 InjectionFailed:1;
-		ULONG64 Reserved:55;
+		ULONG64 UndecodedMmio:1;
+		ULONG64 Reserved:54;
 	};
 	ULONG64 Value;
 }NOIR_EMULATION_STATUS,*PNOIR_EMULATION_STATUS;

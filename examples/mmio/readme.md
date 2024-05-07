@@ -1,6 +1,9 @@
 # MMIO Example
 This directory stores the example that a User Hypervisor handles MMIO from CVM Guest.
 
+## Emulator API
+Starting May 2024, NoirCvmApi provides a set of Emulator API that further decodes the I/O operations so that data can be transferred right-at-the-box. This example will utilize this set of API.
+
 ## Memory Layout
 The layout of guest memory space is defined as following:
 

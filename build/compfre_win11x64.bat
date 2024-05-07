@@ -21,11 +21,13 @@ cl ..\src\win\drv_comm.c /I"%incpath%\shared" /I"%incpath%\um" /I"%incpath%\ucrt
 
 cl ..\src\win\public.c /I"%incpath%\shared" /I"%incpath%\um" /I"%incpath%\ucrt" /I"%ddkpath%\include" /I"..\sdk\include" /Zi /nologo /W3 /WX /O2 /Oi /D"_AMD64_" /D"_M_AMD64" /D"_WIN64" /D"_UNICODE" /D"UNICODE" /Zc:wchar_t /std:c17 /FAcs /Fa"%objpath%\public.cod" /Fo"%objpath%\public.obj" /Fd"%objpath%\vc140.pdb" /GS- /Gy /GF /Qspectre /TC /c /errorReport:queue
 
+cl ..\src\emulator.c /I"%incpath%\shared" /I"%incpath%\um" /I"%incpath%\ucrt" /I"%ddkpath%\include" /I"..\sdk\include" /Zi /nologo /W3 /WX /O2 /Oi /D"_AMD64_" /D"_M_AMD64" /D"_WIN64" /D"_UNICODE" /D"UNICODE" /Zc:wchar_t /std:c17 /FAcs /Fa"%objpath%\emulator.cod" /Fo"%objpath%\emulator.obj" /Fd"%objpath%\vc90.pdb" /GS- /Gy /GF /Qspectre /TC /c /errorReport:queue
+
 rc /nologo /i"%incpath%\shared" /i"%incpath%\um" /I"%incpath%\ucrt" /I"%ddkpath%\include" /d"_AMD64_" /fo"%objpath%\version.res" /n ..\src\win\version.rc
 
 echo ============Start Linking============
-link "%objpath%\misc.obj" "%objpath%\drv_comm.obj" "%objpath%\public.obj" "%objpath%\version.res" /LIBPATH:"%libpath%\um\x64" /LIBPATH:"%libpath%\ucrt\x64" /LIBPATH:"%ddkpath%\lib\x64" /NOLOGO /DEBUG /INCREMENTAL:NO /DEF:"..\src\win\export.def" /PDB:"%objpath%\NoirCvmApi.pdb" /OUT:"%binpath%\NoirCvmApi.dll" /OPT:REF /OPT:ICF /SUBSYSTEM:WINDOWS /DLL /Machine:X64 /ERRORREPORT:QUEUE
+link "%objpath%\misc.obj" "%objpath%\drv_comm.obj" "%objpath%\public.obj" "%objpath%\emulator.obj" "%objpath%\version.res" /LIBPATH:"%libpath%\um\x64" /LIBPATH:"%libpath%\ucrt\x64" /LIBPATH:"%ddkpath%\lib\x64" /NOLOGO /DEBUG /INCREMENTAL:NO /DEF:"..\src\win\export.def" /PDB:"%objpath%\NoirCvmApi.pdb" /OUT:"%binpath%\NoirCvmApi.dll" /OPT:REF /OPT:ICF /SUBSYSTEM:WINDOWS /DLL /Machine:X64 /ERRORREPORT:QUEUE
 
-lib "%objpath%\misc.obj" "%objpath%\drv_comm.obj" "%objpath%\public.obj" /NOLOGO /OUT:"%binpath%\NoirCvmApi_Static.lib" /MACHINE:X64 /ERRORREPORT:QUEUE
+lib "%objpath%\misc.obj" "%objpath%\drv_comm.obj" "%objpath%\public.obj" "%objpath%\emulator.obj" /NOLOGO /OUT:"%binpath%\NoirCvmApi_Static.lib" /MACHINE:X64 /ERRORREPORT:QUEUE
 
 if "%~1"=="/s" (echo Completed!) else (pause)
